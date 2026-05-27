@@ -109,13 +109,14 @@ T7 ──┤
 - `src/index.ts` — `export const VYNEX_VERSION = '0.1.0'` and `export type AppName = 'vynex'`
 
 **Done when**:
-- [ ] `src/index.ts` exports `VYNEX_VERSION` and `AppName`
-- [ ] `pnpm --filter @vynex/shared build` emits `dist/index.js` and `dist/index.d.ts`
-- [ ] Package name `@vynex/shared` resolves as a local workspace package
+- [x] `src/index.ts` exports `VYNEX_VERSION` and `AppName`
+- [x] `pnpm --filter @vynex/shared build` emits `dist/index.js` and `dist/index.d.ts`
+- [x] Package name `@vynex/shared` resolves as a local workspace package
 
 **Tests**: none
-**Gate**: `pnpm --filter @vynex/shared build` exits 0
+**Gate**: `pnpm --filter @vynex/shared build` exits 0 ✅
 **Commit**: `chore(shared): scaffold @vynex/shared package`
+**Status**: Verified
 
 ---
 
