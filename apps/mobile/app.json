@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "Vynex",
+    "slug": "vynex",
+    "version": "1.0.0",
+    "platforms": ["ios", "android"]
+  }
+}

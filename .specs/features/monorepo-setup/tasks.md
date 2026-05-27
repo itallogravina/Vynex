@@ -216,10 +216,10 @@ T7 ──┤
 **Done when**:
 - [ ] `pnpm --filter @vynex/mobile dev` starts Expo without errors (QR code or simulator)
 - [ ] App renders "Vynex Mobile" on screen
-- [ ] `pnpm --filter @vynex/mobile typecheck` exits 0
+- [x] `pnpm --filter @vynex/mobile typecheck` exits 0
 
 **Tests**: none
-**Gate**: `pnpm --filter @vynex/mobile typecheck` exits 0; manual Expo smoke test
+**Gate**: `pnpm --filter @vynex/mobile typecheck` exits 0 ✅; manual Expo smoke test
 **Commit**: `feat(mobile): scaffold Expo mobile shell`
 
 ---
