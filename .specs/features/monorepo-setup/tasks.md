@@ -1,7 +1,7 @@
 # Monorepo Setup Tasks
 
 **Spec**: `.specs/features/monorepo-setup/spec.md`
-**Status**: In Progress
+**Status**: ✅ Complete
 
 ---
 
@@ -337,13 +337,14 @@ Root devDeps to add: `eslint`, `@typescript-eslint/eslint-plugin`, `@typescript-
 
 **Done when**:
 
-- [ ] `pnpm lint` exits 0 on the clean scaffolded codebase
-- [ ] Adding an unused variable to any app file causes `pnpm lint` to report an error
-- [ ] `pnpm format` runs without errors and formats `.ts`/`.tsx` files
+- [x] `pnpm lint` exits 0 on the clean scaffolded codebase
+- [x] Adding an unused variable to any app file causes `pnpm lint` to report an error
+- [x] `pnpm format` runs without errors and formats `.ts`/`.tsx` files
 
 **Tests**: none
-**Gate**: `pnpm lint` exits 0 on clean code; reports error on unused variable
+**Gate**: `pnpm lint` exits 0 on clean code ✅; reports error on unused variable ✅; `pnpm format` exits 0 ✅
 **Commit**: `chore: add ESLint and Prettier root config`
+**Status**: Verified
 
 ---
 
@@ -386,13 +387,13 @@ No TESTING.md (greenfield). This feature is pure scaffolding — no business log
 | Requirement ID | Story                                         | Covered by | Status   |
 | -------------- | --------------------------------------------- | ---------- | -------- |
 | MONO-01        | Unified workspace bootstrap                   | T1         | Verified |
-| MONO-02        | Single dev command starts all apps            | T8         | Pending  |
-| MONO-03        | TypeScript end-to-end with shared base config | T2, T7     | Pending  |
-| MONO-04        | packages/shared importable in all apps        | T3, T7     | Pending  |
-| MONO-05        | Fastify server shell                          | T4         | Pending  |
-| MONO-06        | Tauri desktop shell                           | T5         | Pending  |
-| MONO-07        | Expo mobile shell                             | T6         | Pending  |
-| MONO-08        | Turborepo pipeline with caching               | T8         | Pending  |
-| MONO-09        | ESLint + Prettier at root                     | T9         | Pending  |
+| MONO-02        | Single dev command starts all apps            | T8         | Verified |
+| MONO-03        | TypeScript end-to-end with shared base config | T2, T7     | Verified |
+| MONO-04        | packages/shared importable in all apps        | T3, T7     | Verified |
+| MONO-05        | Fastify server shell                          | T4         | Verified |
+| MONO-06        | Tauri desktop shell                           | T5         | Verified |
+| MONO-07        | Expo mobile shell                             | T6         | Verified |
+| MONO-08        | Turborepo pipeline with caching               | T8         | Verified |
+| MONO-09        | ESLint + Prettier at root                     | T9         | Verified |
 
 **Coverage: 9/9 ✅**
