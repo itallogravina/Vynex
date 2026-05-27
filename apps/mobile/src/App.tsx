@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native'
 export default function App(): React.JSX.Element {
   return (
     <View style={styles.container}>
-      <Text>Vynex Mobile</Text>
+      <Text>Vynex Mobile itallo</Text>
       <StatusBar style="auto" />
     </View>
   )
