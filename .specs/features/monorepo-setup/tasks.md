@@ -303,14 +303,15 @@ pnpm --filter '@vynex/*' typecheck
 
 **Done when**:
 
-- [ ] `pnpm dev` from root starts all three app dev scripts in parallel
-- [ ] `pnpm build` builds `@vynex/shared` before apps (dependency order respected)
-- [ ] Second `pnpm build` run shows Turborepo cache hits (no changed files)
-- [ ] `pnpm --filter @vynex/server dev` starts only the server
+- [x] `pnpm dev` from root starts all three app dev scripts in parallel
+- [x] `pnpm build` builds `@vynex/shared` before apps (dependency order respected)
+- [x] Second `pnpm build` run shows Turborepo cache hits (no changed files)
+- [x] `pnpm --filter @vynex/server dev` starts only the server
 
 **Tests**: none
-**Gate**: `pnpm build` exits 0; second run shows cache hits
+**Gate**: `pnpm build` exits 0 ✅; second run shows cache hits ✅; `npx turbo run typecheck --filter="@vynex/*"` 4/4 cached in 35ms ✅
 **Commit**: `chore: configure Turborepo pipeline`
+**Status**: Verified
 
 ---
 
