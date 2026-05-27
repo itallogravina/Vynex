@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

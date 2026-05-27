@@ -5,7 +5,9 @@
   "main": "index.ts",
   "scripts": {
     "dev": "expo start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@vynex/shared": "workspace:*",
