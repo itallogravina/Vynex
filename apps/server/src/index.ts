@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import { VYNEX_VERSION } from '@vynex/shared'
 
 const server = Fastify({ logger: true })
 
@@ -13,5 +14,5 @@ server.listen({ port, host: '0.0.0.0' }, (err, address) => {
     server.log.error(err)
     process.exit(1)
   }
-  server.log.info(`Listening on ${address}`)
+  server.log.info(`Vynex v${VYNEX_VERSION} listening on ${address}`)
 })

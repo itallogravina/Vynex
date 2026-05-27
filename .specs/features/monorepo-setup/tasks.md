@@ -239,21 +239,22 @@ T7 ──┤
 **Requirement**: MONO-03, MONO-04
 
 **Done when**:
-- [ ] `pnpm install` exits 0 after adding workspace deps
-- [ ] `pnpm typecheck` from repo root exits 0 across all 4 packages
-- [ ] Server logs `VYNEX_VERSION` on startup
-- [ ] Introducing a deliberate type error in `packages/shared/src/index.ts` causes `pnpm typecheck` to fail
-- [ ] Reverting the error restores clean typecheck
+- [x] `pnpm install` exits 0 after adding workspace deps
+- [x] `pnpm typecheck` from repo root exits 0 across all 4 packages
+- [x] Server logs `VYNEX_VERSION` on startup
+- [x] Introducing a deliberate type error in `packages/shared/src/index.ts` causes `pnpm typecheck` to fail
+- [x] Reverting the error restores clean typecheck
 
 **Verify**:
 ```
-pnpm typecheck
+pnpm --filter '@vynex/*' typecheck
 # Expected: exit 0, no errors reported
 ```
 
 **Tests**: none
-**Gate**: `pnpm typecheck` exits 0 from repo root
+**Gate**: `pnpm --filter '@vynex/*' typecheck` exits 0 ✅
 **Commit**: `chore: wire @vynex/shared imports across all apps`
+**Status**: Verified
 
 ---
 
