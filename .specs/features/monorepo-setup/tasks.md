@@ -45,6 +45,7 @@ T7 ──┤
 
 **What**: Create the root workspace manifest and pnpm workspace declaration.
 **Where**:
+
 - `package.json`
 - `pnpm-workspace.yaml`
 
@@ -52,10 +53,12 @@ T7 ──┤
 **Requirement**: MONO-01
 
 **Files**:
+
 - `package.json` — name `vynex`, `private: true`, `packageManager: pnpm@9.x`, root scripts delegating to `turbo run <task>`: `dev`, `build`, `lint`, `typecheck`, `format`; devDeps: `turbo`, `typescript`, `eslint`, `prettier`
 - `pnpm-workspace.yaml` — `packages: ['apps/*', 'packages/*']`
 
 **Done when**:
+
 - [ ] `pnpm-workspace.yaml` exists and lists `apps/*` and `packages/*`
 - [ ] Root `package.json` has `packageManager` field pinning pnpm version
 - [ ] Root scripts include `dev`, `build`, `lint`, `typecheck`, `format` all delegating to `turbo run`
@@ -76,14 +79,16 @@ T7 ──┤
 **Requirement**: MONO-03
 
 **Key settings**:
+
 - `target: ES2022`, `module: ESNext`, `moduleResolution: bundler`
 - `strict: true`, `noUncheckedIndexedAccess: true`, `skipLibCheck: true`
 - `paths: { "@vynex/shared": ["./packages/shared/src/index.ts"] }` — resolves import without build step in dev
 
 **Done when**:
-- [x] File exists at repo root with `strict: true` and `noUncheckedIndexedAccess: true`
-- [x] `paths` alias `@vynex/shared` points to `packages/shared/src/index.ts`
-- [x] `pnpm exec tsc --version` exits 0 (typescript installed)
+
+- [X] File exists at repo root with `strict: true` and `noUncheckedIndexedAccess: true`
+- [X] `paths` alias `@vynex/shared` points to `packages/shared/src/index.ts`
+- [X] `pnpm exec tsc --version` exits 0 (typescript installed)
 
 **Tests**: none
 **Gate**: `pnpm exec tsc --version` exits 0 ✅ (TypeScript 5.9.3)
@@ -96,6 +101,7 @@ T7 ──┤
 
 **What**: Create the `@vynex/shared` package with a `VYNEX_VERSION` seed export and a type stub — proves cross-package resolution before business types exist.
 **Where**:
+
 - `packages/shared/package.json`
 - `packages/shared/tsconfig.json`
 - `packages/shared/src/index.ts`
@@ -104,14 +110,16 @@ T7 ──┤
 **Requirement**: MONO-04
 
 **File details**:
+
 - `package.json` — name `@vynex/shared`, `main: dist/index.js`, `types: dist/index.d.ts`, `exports` map with `types`/`import`/`default`, build script `tsc`, devDep `typescript`
 - `tsconfig.json` — extends `../../tsconfig.base.json`, `outDir: dist`, `rootDir: src`, `declaration: true`, `declarationMap: true`
 - `src/index.ts` — `export const VYNEX_VERSION = '0.1.0'` and `export type AppName = 'vynex'`
 
 **Done when**:
-- [x] `src/index.ts` exports `VYNEX_VERSION` and `AppName`
-- [x] `pnpm --filter @vynex/shared build` emits `dist/index.js` and `dist/index.d.ts`
-- [x] Package name `@vynex/shared` resolves as a local workspace package
+
+- [X] `src/index.ts` exports `VYNEX_VERSION` and `AppName`
+- [X] `pnpm --filter @vynex/shared build` emits `dist/index.js` and `dist/index.d.ts`
+- [X] Package name `@vynex/shared` resolves as a local workspace package
 
 **Tests**: none
 **Gate**: `pnpm --filter @vynex/shared build` exits 0 ✅
@@ -124,6 +132,7 @@ T7 ──┤
 
 **What**: Create the Fastify server shell with a `/health` endpoint and `tsx` watch mode for hot-restart on save.
 **Where**:
+
 - `apps/server/package.json`
 - `apps/server/tsconfig.json`
 - `apps/server/src/index.ts`
@@ -132,16 +141,18 @@ T7 ──┤
 **Requirement**: MONO-05
 
 **File details**:
+
 - `package.json` — name `@vynex/server`, scripts: `dev: tsx watch src/index.ts`, `build: tsc`, `typecheck: tsc --noEmit`; deps: `fastify`; devDeps: `tsx`, `typescript`, `@types/node`
 - `tsconfig.json` — extends `../../tsconfig.base.json`, override `module: CommonJS` and `moduleResolution: node` (Node.js runtime requirement)
 - `src/index.ts` — create Fastify instance, register `GET /health` returning `{ status: 'ok', app: 'vynex-server' }`, listen on `process.env.PORT ?? 3000`, log listening address on start
 
 **Done when**:
-- [x] `pnpm --filter @vynex/server dev` starts Fastify without errors
-- [x] `curl http://localhost:3001/health` returns `{"status":"ok","app":"vynex-server"}`
-- [x] Saving `src/index.ts` triggers server restart (tsx watch)
-- [x] `PORT=3001 pnpm --filter @vynex/server dev` binds to 3001
-- [x] `pnpm --filter @vynex/server typecheck` exits 0
+
+- [X] `pnpm --filter @vynex/server dev` starts Fastify without errors
+- [X] `curl http://localhost:3001/health` returns `{"status":"ok","app":"vynex-server"}`
+- [X] Saving `src/index.ts` triggers server restart (tsx watch)
+- [X] `PORT=3001 pnpm --filter @vynex/server dev` binds to 3001
+- [X] `pnpm --filter @vynex/server typecheck` exits 0
 
 **Tests**: none
 **Gate**: `pnpm --filter @vynex/server typecheck` exits 0 ✅; `curl` smoke test ✅
@@ -154,6 +165,7 @@ T7 ──┤
 
 **What**: Create the Tauri + React + Vite desktop app shell that opens a native window titled "Vynex" with React HMR.
 **Where**:
+
 - `apps/desktop/package.json`
 - `apps/desktop/tsconfig.json`
 - `apps/desktop/vite.config.ts`
@@ -169,6 +181,7 @@ T7 ──┤
 **Requirement**: MONO-06
 
 **File details**:
+
 - `package.json` — name `@vynex/desktop`, scripts: `dev: tauri dev`, `build: tauri build`, `typecheck: tsc --noEmit`; deps: `react`, `react-dom`; devDeps: `@tauri-apps/cli@^2`, `@tauri-apps/api@^2`, `vite`, `@vitejs/plugin-react`, `typescript`, `@types/react`, `@types/react-dom`
 - `vite.config.ts` — React plugin, `server.port: 1420`, `server.strictPort: true` (Tauri requires fixed port)
 - `index.html` — minimal HTML with `<div id="root">` and `<script type="module" src="/src/main.tsx">`
@@ -183,13 +196,15 @@ T7 ──┤
 **Note**: Requires Rust toolchain (`rustup`) pre-installed. Run `rustup update stable` before this task.
 
 **Done when**:
-- [ ] `pnpm --filter @vynex/desktop dev` opens a native window with title "Vynex"
-- [ ] Editing `src/App.tsx` triggers hot reload in the open window
-- [ ] `pnpm --filter @vynex/desktop typecheck` exits 0
+
+- [x] `pnpm --filter @vynex/desktop dev` opens a native window with title "Vynex"
+- [x] Editing `src/App.tsx` triggers hot reload in the open window
+- [x] `pnpm --filter @vynex/desktop typecheck` exits 0
 
 **Tests**: none
-**Gate**: `pnpm --filter @vynex/desktop typecheck` exits 0; manual visual smoke test
+**Gate**: `pnpm --filter @vynex/desktop typecheck` exits 0 ✅; Tauri dev compiles and runs ✅
 **Commit**: `feat(desktop): scaffold Tauri + React desktop shell`
+**Status**: Verified
 
 ---
 
@@ -197,6 +212,7 @@ T7 ──┤
 
 **What**: Create the Expo React Native app shell that renders "Vynex Mobile" on a simulator or device.
 **Where**:
+
 - `apps/mobile/package.json`
 - `apps/mobile/tsconfig.json`
 - `apps/mobile/app.json`
@@ -207,6 +223,7 @@ T7 ──┤
 **Requirement**: MONO-07
 
 **File details**:
+
 - `package.json` — name `@vynex/mobile`, scripts: `dev: expo start`, `typecheck: tsc --noEmit`; deps: `expo`, `expo-status-bar`, `react`, `react-native`; devDeps: `typescript`, `@types/react`, `@babel/core`
 - `tsconfig.json` — extends `../../tsconfig.base.json` then `expo/tsconfig.base` (Expo overrides some settings for RN compatibility)
 - `app.json` — `name: "Vynex"`, `slug: "vynex"`, `version: "1.0.0"`, `platforms: ["ios", "android"]`
@@ -214,9 +231,10 @@ T7 ──┤
 - `src/App.tsx` — renders `<View><Text>Vynex Mobile</Text></View>` with basic styles
 
 **Done when**:
-- [ ] `pnpm --filter @vynex/mobile dev` starts Expo without errors (QR code or simulator)
-- [ ] App renders "Vynex Mobile" on screen
-- [x] `pnpm --filter @vynex/mobile typecheck` exits 0
+
+- [X] `pnpm --filter @vynex/mobile dev` starts Expo without errors (QR code or simulator)
+- [X] App renders "Vynex Mobile" on screen
+- [X] `pnpm --filter @vynex/mobile typecheck` exits 0
 
 **Tests**: none
 **Gate**: `pnpm --filter @vynex/mobile typecheck` exits 0 ✅; manual Expo smoke test
@@ -228,6 +246,7 @@ T7 ──┤
 
 **What**: Add `"@vynex/shared": "workspace:*"` to each app's dependencies and import `VYNEX_VERSION` in all three apps; verify `pnpm typecheck` passes cleanly across the entire monorepo.
 **Where**:
+
 - `apps/server/package.json` — add `@vynex/shared` dep
 - `apps/server/src/index.ts` — add import and log `VYNEX_VERSION`
 - `apps/desktop/package.json` — add `@vynex/shared` dep
@@ -239,13 +258,15 @@ T7 ──┤
 **Requirement**: MONO-03, MONO-04
 
 **Done when**:
-- [x] `pnpm install` exits 0 after adding workspace deps
-- [x] `pnpm typecheck` from repo root exits 0 across all 4 packages
-- [x] Server logs `VYNEX_VERSION` on startup
-- [x] Introducing a deliberate type error in `packages/shared/src/index.ts` causes `pnpm typecheck` to fail
-- [x] Reverting the error restores clean typecheck
+
+- [X] `pnpm install` exits 0 after adding workspace deps
+- [X] `pnpm typecheck` from repo root exits 0 across all 4 packages
+- [X] Server logs `VYNEX_VERSION` on startup
+- [X] Introducing a deliberate type error in `packages/shared/src/index.ts` causes `pnpm typecheck` to fail
+- [X] Reverting the error restores clean typecheck
 
 **Verify**:
+
 ```
 pnpm --filter '@vynex/*' typecheck
 # Expected: exit 0, no errors reported
@@ -267,6 +288,7 @@ pnpm --filter '@vynex/*' typecheck
 **Requirement**: MONO-02, MONO-08
 
 **Pipeline spec**:
+
 ```json
 {
   "tasks": {
@@ -280,6 +302,7 @@ pnpm --filter '@vynex/*' typecheck
 ```
 
 **Done when**:
+
 - [ ] `pnpm dev` from root starts all three app dev scripts in parallel
 - [ ] `pnpm build` builds `@vynex/shared` before apps (dependency order respected)
 - [ ] Second `pnpm build` run shows Turborepo cache hits (no changed files)
@@ -295,6 +318,7 @@ pnpm --filter '@vynex/*' typecheck
 
 **What**: Add root-level ESLint (flat config) and Prettier configs that apply to all TypeScript files in `apps/` and `packages/`.
 **Where**:
+
 - `eslint.config.js`
 - `.prettierrc`
 - `.prettierignore`
@@ -303,6 +327,7 @@ pnpm --filter '@vynex/*' typecheck
 **Requirement**: MONO-09
 
 **File details**:
+
 - `eslint.config.js` — flat config using `@typescript-eslint/eslint-plugin` and `@typescript-eslint/parser`; rules: `@typescript-eslint/no-unused-vars: error`, `@typescript-eslint/no-explicit-any: warn`; ignores: `**/dist/**`, `**/node_modules/**`, `**/src-tauri/**`
 - `.prettierrc` — `{ "semi": false, "singleQuote": true, "printWidth": 100, "trailingComma": "es5" }`
 - `.prettierignore` — `dist/`, `node_modules/`, `src-tauri/`, `.expo/`
@@ -310,6 +335,7 @@ pnpm --filter '@vynex/*' typecheck
 Root devDeps to add: `eslint`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser`, `prettier`, `eslint-config-prettier`
 
 **Done when**:
+
 - [ ] `pnpm lint` exits 0 on the clean scaffolded codebase
 - [ ] Adding an unused variable to any app file causes `pnpm lint` to report an error
 - [ ] `pnpm format` runs without errors and formats `.ts`/`.tsx` files
@@ -322,17 +348,17 @@ Root devDeps to add: `eslint`, `@typescript-eslint/eslint-plugin`, `@typescript-
 
 ## Diagram-Definition Cross-Check
 
-| Task | Depends on (task body) | Diagram shows | Status |
-|------|------------------------|---------------|--------|
-| T1 | None | Start → T1 | ✅ |
-| T2 | T1 | T1 → T2 | ✅ |
-| T3 | T2 | T2 → T3 [P] | ✅ |
-| T4 | T2 | T2 → T4 [P] | ✅ |
-| T5 | T2 | T2 → T5 [P] | ✅ |
-| T6 | T2 | T2 → T6 [P] | ✅ |
-| T7 | T3, T4, T5, T6 | all Phase 2 → T7 | ✅ |
-| T8 | T7 | T7 → T8 [P] | ✅ |
-| T9 | T7 | T7 → T9 [P] | ✅ |
+| Task | Depends on (task body) | Diagram shows     | Status |
+| ---- | ---------------------- | ----------------- | ------ |
+| T1   | None                   | Start → T1       | ✅     |
+| T2   | T1                     | T1 → T2          | ✅     |
+| T3   | T2                     | T2 → T3 [P]      | ✅     |
+| T4   | T2                     | T2 → T4 [P]      | ✅     |
+| T5   | T2                     | T2 → T5 [P]      | ✅     |
+| T6   | T2                     | T2 → T6 [P]      | ✅     |
+| T7   | T3, T4, T5, T6         | all Phase 2 → T7 | ✅     |
+| T8   | T7                     | T7 → T8 [P]      | ✅     |
+| T9   | T7                     | T7 → T9 [P]      | ✅     |
 
 ---
 
@@ -340,32 +366,32 @@ Root devDeps to add: `eslint`, `@typescript-eslint/eslint-plugin`, `@typescript-
 
 No TESTING.md (greenfield). This feature is pure scaffolding — no business logic, no unit tests required. All verification is via `tsc --noEmit` gates and manual smoke runs.
 
-| Task | Code layer | Test type | Gate |
-|------|-----------|-----------|------|
-| T1 | Workspace config | none | `pnpm install` exits 0 |
-| T2 | TS base config | none | `tsc --version` |
-| T3 | Shared package | none | `pnpm --filter @vynex/shared build` |
-| T4 | Fastify server | none | typecheck + `curl` smoke |
-| T5 | Tauri desktop shell | none | typecheck + visual smoke |
-| T6 | Expo mobile shell | none | typecheck + visual smoke |
-| T7 | Cross-package wiring | none | `pnpm typecheck` (root) |
-| T8 | Turborepo pipeline | none | build + cache hit |
-| T9 | Lint/format config | none | `pnpm lint` clean + violation |
+| Task | Code layer           | Test type | Gate                                  |
+| ---- | -------------------- | --------- | ------------------------------------- |
+| T1   | Workspace config     | none      | `pnpm install` exits 0              |
+| T2   | TS base config       | none      | `tsc --version`                     |
+| T3   | Shared package       | none      | `pnpm --filter @vynex/shared build` |
+| T4   | Fastify server       | none      | typecheck +`curl` smoke             |
+| T5   | Tauri desktop shell  | none      | typecheck + visual smoke              |
+| T6   | Expo mobile shell    | none      | typecheck + visual smoke              |
+| T7   | Cross-package wiring | none      | `pnpm typecheck` (root)             |
+| T8   | Turborepo pipeline   | none      | build + cache hit                     |
+| T9   | Lint/format config   | none      | `pnpm lint` clean + violation       |
 
 ---
 
 ## Requirement Traceability
 
-| Requirement ID | Story | Covered by | Status |
-|---|---|---|---|
-| MONO-01 | Unified workspace bootstrap | T1 | Verified |
-| MONO-02 | Single dev command starts all apps | T8 | Pending |
-| MONO-03 | TypeScript end-to-end with shared base config | T2, T7 | Pending |
-| MONO-04 | packages/shared importable in all apps | T3, T7 | Pending |
-| MONO-05 | Fastify server shell | T4 | Pending |
-| MONO-06 | Tauri desktop shell | T5 | Pending |
-| MONO-07 | Expo mobile shell | T6 | Pending |
-| MONO-08 | Turborepo pipeline with caching | T8 | Pending |
-| MONO-09 | ESLint + Prettier at root | T9 | Pending |
+| Requirement ID | Story                                         | Covered by | Status   |
+| -------------- | --------------------------------------------- | ---------- | -------- |
+| MONO-01        | Unified workspace bootstrap                   | T1         | Verified |
+| MONO-02        | Single dev command starts all apps            | T8         | Pending  |
+| MONO-03        | TypeScript end-to-end with shared base config | T2, T7     | Pending  |
+| MONO-04        | packages/shared importable in all apps        | T3, T7     | Pending  |
+| MONO-05        | Fastify server shell                          | T4         | Pending  |
+| MONO-06        | Tauri desktop shell                           | T5         | Pending  |
+| MONO-07        | Expo mobile shell                             | T6         | Pending  |
+| MONO-08        | Turborepo pipeline with caching               | T8         | Pending  |
+| MONO-09        | ESLint + Prettier at root                     | T9         | Pending  |
 
 **Coverage: 9/9 ✅**
