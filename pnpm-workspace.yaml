@@ -3,3 +3,8 @@ packages:
   - 'packages/*'
 allowBuilds:
   esbuild: true
+publicHoistPattern:
+  - '*metro*'
+  - '*react-native*'
+  - '@react-native*'
+  - '*hermes*'
