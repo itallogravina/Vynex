@@ -226,17 +226,17 @@ vynex/
 
 | Requirement ID | Story | Status |
 |---|---|---|
-| MONO-01 | P1: Unified workspace bootstrap | Pending |
-| MONO-02 | P1: Single dev command starts all apps | Pending |
-| MONO-03 | P1: TypeScript end-to-end with shared base config | Pending |
-| MONO-04 | P1: packages/shared importable in all apps | Pending |
-| MONO-05 | P1: Fastify server shell | Pending |
-| MONO-06 | P1: Tauri desktop shell | Pending |
-| MONO-07 | P1: Expo mobile shell | Pending |
-| MONO-08 | P2: Turborepo pipeline with caching | Pending |
-| MONO-09 | P2: ESLint + Prettier at root | Pending |
+| MONO-01 | P1: Unified workspace bootstrap | In Tasks |
+| MONO-02 | P1: Single dev command starts all apps | In Tasks |
+| MONO-03 | P1: TypeScript end-to-end with shared base config | In Tasks |
+| MONO-04 | P1: packages/shared importable in all apps | In Tasks |
+| MONO-05 | P1: Fastify server shell | In Tasks |
+| MONO-06 | P1: Tauri desktop shell | In Tasks |
+| MONO-07 | P1: Expo mobile shell | In Tasks |
+| MONO-08 | P2: Turborepo pipeline with caching | In Tasks |
+| MONO-09 | P2: ESLint + Prettier at root | In Tasks |
 
-**Coverage:** 9 total, 0 mapped to tasks, 9 unmapped ⚠️
+**Coverage:** 9 total, 9 mapped to tasks ✅
 
 ---
 

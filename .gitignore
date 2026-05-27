@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+
+# PNPM
+.pnpm-store/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+coverage/
+.next/
+out/
+.turbo/
+.vite/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Docker
+docker-data/
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Testing
+playwright-report/
+test-results/
+
+# Misc
+*.swp
