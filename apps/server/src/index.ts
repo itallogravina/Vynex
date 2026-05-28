@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import Fastify from 'fastify'
 import FastifyWebSocket from '@fastify/websocket'
 import { VYNEX_VERSION } from '@vynex/shared'
@@ -28,6 +29,15 @@ async function main() {
       version: VYNEX_VERSION,
       db: isReplicaMode() ? 'replica' : 'local',
     }
+  })
+
+  // TODO: remove before production
+  server.post('/admin/sync', async (request, reply) => {
+    if (!isReplicaMode()) {
+      return reply.status(400).send({ error: 'Not in replica mode — no Turso credentials configured' })
+    }
+    await syncNow()
+    return { ok: true }
   })
 
   await registerWebSocketHandler(server)

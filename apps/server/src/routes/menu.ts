@@ -66,7 +66,7 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'Invalid routing_zone' })
     }
 
-    const item = await createMenuItem(category_id, name.trim(), price, routing_zone)
+    const item = await createMenuItem(category_id ?? null, name.trim(), price, routing_zone)
     return reply.status(201).send(item)
   })
 

@@ -268,7 +268,7 @@ export async function listAllMenuItems(): Promise<MenuItem[]> {
 }
 
 export async function createMenuItem(
-  categoryId: string,
+  categoryId: string | null,
   name: string,
   price: number,
   routingZone: RoutingZone

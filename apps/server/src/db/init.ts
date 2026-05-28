@@ -45,20 +45,13 @@ export async function initializeDatabase(dbPath: string = './vynex.db'): Promise
 }
 
 async function runMigrations(): Promise<void> {
-  // Add updated_at to menu_items if missing (pre-M3 databases)
   try {
-    const result = await client!.execute({
-      sql: `SELECT COUNT(*) as count FROM pragma_table_info('menu_items') WHERE name = 'updated_at'`,
-      args: [],
-    })
-    const hasUpdatedAt = Number(result.rows[0]?.count ?? 0) > 0
-    if (!hasUpdatedAt) {
-      await client!.execute(
-        "ALTER TABLE menu_items ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
-      )
-    }
+    await client!.execute(
+      "ALTER TABLE menu_items ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+    )
+    console.log('[db] migration: added updated_at to menu_items')
   } catch {
-    // Column may already exist; safe to ignore
+    // column already exists — expected on fresh or already-migrated databases
   }
 
   // Add payment_method and closed_at to orders if missing (pre-M1 databases)
