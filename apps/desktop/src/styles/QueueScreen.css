@@ -1,0 +1,224 @@
+.queue-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+    sans-serif;
+}
+
+.screen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: #2c3e50;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.screen-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.connection-status {
+  font-size: 0.875rem;
+}
+
+.status-connected {
+  color: #27ae60;
+  font-weight: 500;
+}
+
+.status-disconnected {
+  color: #e74c3c;
+  font-weight: 500;
+}
+
+.error-banner {
+  padding: 0.75rem 1.5rem;
+  background: #e74c3c;
+  color: white;
+  font-size: 0.875rem;
+}
+
+.queue-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.empty-queue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #7f8c8d;
+  font-size: 1.125rem;
+}
+
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.queue-item {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #bdc3c7;
+  transition: all 0.2s ease;
+}
+
+.queue-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.item-status-pending {
+  border-left-color: #e74c3c;
+}
+
+.item-status-preparing {
+  border-left-color: #f39c12;
+}
+
+.item-status-ready {
+  border-left-color: #27ae60;
+}
+
+.item-status-served {
+  border-left-color: #3498db;
+}
+
+.item-status-billed {
+  border-left-color: #95a5a6;
+  opacity: 0.6;
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.item-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.quantity {
+  display: inline-block;
+  background: #ecf0f1;
+  color: #2c3e50;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.item-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.table-name {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #7f8c8d;
+}
+
+.status-badge {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #2c3e50;
+}
+
+.item-notes {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: #ecf0f1;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #2c3e50;
+  border-left: 2px solid #3498db;
+}
+
+.item-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.btn {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.btn:hover {
+  transform: scale(1.02);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: #3498db;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2980b9;
+}
+
+.btn-success {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #229954;
+}
+
+.btn-info {
+  background: #2980b9;
+  color: white;
+}
+
+.btn-info:hover {
+  background: #1f618d;
+}
+
+/* Kitchen screen specific */
+.kitchen-screen .screen-header {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+}
+
+/* Bar screen specific */
+.bar-screen .screen-header {
+  background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%);
+}
+
+/* Cashier screen specific */
+.cashier-screen .screen-header {
+  background: linear-gradient(135deg, #16a085 0%, #117a65 100%);
+}
