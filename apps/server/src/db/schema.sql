@@ -37,7 +37,19 @@ CREATE TABLE IF NOT EXISTS menu_items (
   routing_zone TEXT NOT NULL CHECK(routing_zone IN ('kitchen', 'bar', 'cashier', 'table')),
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
+-- Audit log for menu and category changes (used for manual conflict detection)
+CREATE TABLE IF NOT EXISTS menu_changes_log (
+  id TEXT PRIMARY KEY,
+  table_name TEXT NOT NULL,
+  row_id TEXT NOT NULL,
+  operation TEXT NOT NULL CHECK(operation IN ('insert', 'update', 'delete')),
+  changed_fields TEXT,
+  source TEXT NOT NULL DEFAULT 'local',
+  changed_at TEXT NOT NULL
 );
 
 -- Orders (customer orders at a table)
@@ -75,3 +87,4 @@ CREATE INDEX IF NOT EXISTS idx_orders_table_id ON orders(table_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_status ON order_items(status);
 CREATE INDEX IF NOT EXISTS idx_order_items_menu_item_id ON order_items(menu_item_id);
+CREATE INDEX IF NOT EXISTS idx_menu_changes_log_row ON menu_changes_log(table_name, row_id);

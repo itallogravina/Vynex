@@ -35,19 +35,19 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'routing_zone must be kitchen, bar, cashier, or table' })
     }
 
-    const venueId = getDefaultVenueId()
+    const venueId = await getDefaultVenueId()
     if (!venueId) {
       return reply.status(500).send({ error: 'No venue configured' })
     }
 
-    const category = createCategory(venueId, name.trim(), routing_zone)
+    const category = await createCategory(venueId, name.trim(), routing_zone)
     return reply.status(201).send(category)
   })
 
   // Delete a category (cascades items via query)
   app.delete<{ Params: { id: string } }>('/categories/:id', async (request, reply) => {
     const { id } = request.params
-    deleteCategory(id)
+    await deleteCategory(id)
     return reply.status(204).send()
   })
 
@@ -66,7 +66,7 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'Invalid routing_zone' })
     }
 
-    const item = createMenuItem(category_id, name.trim(), price, routing_zone)
+    const item = await createMenuItem(category_id, name.trim(), price, routing_zone)
     return reply.status(201).send(item)
   })
 
@@ -84,7 +84,7 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'price must be a non-negative number' })
       }
 
-      const item = updateMenuItem(id, name.trim(), price, routing_zone)
+      const item = await updateMenuItem(id, name.trim(), price, routing_zone)
       return reply.send(item)
     }
   )
@@ -92,14 +92,14 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
   // Toggle a menu item enabled/disabled
   app.patch<{ Params: { id: string } }>('/menu-items/:id/toggle', async (request, reply) => {
     const { id } = request.params
-    const item = toggleMenuItem(id)
+    const item = await toggleMenuItem(id)
     return reply.send(item)
   })
 
   // Delete a menu item
   app.delete<{ Params: { id: string } }>('/menu-items/:id', async (request, reply) => {
     const { id } = request.params
-    deleteMenuItem(id)
+    await deleteMenuItem(id)
     return reply.status(204).send()
   })
 }

@@ -49,25 +49,25 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Body: CreateOrderRequest }>('/orders', async (request, reply) => {
     const { table_id, routing_mode } = request.body
 
-    const table = getTable(table_id)
+    const table = await getTable(table_id)
     if (!table) {
       return reply.status(404).send({ error: 'Table not found' })
     }
 
-    const order = createOrder(table_id, routing_mode)
+    const order = await createOrder(table_id, routing_mode)
     return reply.status(201).send(order)
   })
 
   // Get order with all items
   app.get<{ Params: { id: string } }>('/orders/:id', async (request, reply) => {
     const { id } = request.params
-    const order = getOrder(id)
+    const order = await getOrder(id)
 
     if (!order) {
       return reply.status(404).send({ error: 'Order not found' })
     }
 
-    const items = getOrderItems(id)
+    const items = await getOrderItems(id)
     return reply.send({ ...order, items })
   })
 
@@ -78,7 +78,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params
       const { payment_method } = request.body
 
-      const order = getOrder(id)
+      const order = await getOrder(id)
       if (!order) {
         return reply.status(404).send({ error: 'Order not found' })
       }
@@ -89,9 +89,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'payment_method must be cash or card' })
       }
 
-      const closed = closeOrder(id, payment_method)
+      const closed = await closeOrder(id, payment_method)
 
-      // Notify all queue subscribers and broadcast closed event
       broadcastOrderClosed(id, order.table_id)
       broadcastAllQueueSnapshots()
 
@@ -106,20 +105,20 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params
       const { menu_item_id, quantity, notes } = request.body
 
-      const order = getOrder(id)
+      const order = await getOrder(id)
       if (!order) {
         return reply.status(404).send({ error: 'Order not found' })
       }
 
-      const menuItem = getMenuItem(menu_item_id)
+      const menuItem = await getMenuItem(menu_item_id)
       if (!menuItem) {
         return reply.status(404).send({ error: 'Menu item not found' })
       }
 
-      const item = addOrderItem(id, menu_item_id, quantity, notes)
+      const item = await addOrderItem(id, menu_item_id, quantity, notes)
 
       if (order.routing_mode === 'auto') {
-        const table = getTable(order.table_id)
+        const table = await getTable(order.table_id)
         broadcastItemAdded(item.id, menuItem.name, menuItem.routing_zone, table?.name || 'Unknown', quantity)
         broadcastQueueSnapshot(menuItem.routing_zone)
       }
@@ -135,7 +134,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       const { id, itemId } = request.params
       const { status } = request.body
 
-      const order = getOrder(id)
+      const order = await getOrder(id)
       if (!order) {
         return reply.status(404).send({ error: 'Order not found' })
       }
@@ -145,11 +144,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Invalid status' })
       }
 
-      const items = getOrderItems(id)
+      const items = await getOrderItems(id)
       const currentItem = items.find(item => item.id === itemId)
       const oldStatus = currentItem?.status
 
-      const item = updateOrderItemStatus(itemId, status)
+      const item = await updateOrderItemStatus(itemId, status)
 
       if (oldStatus && currentItem) {
         broadcastItemStatusChanged(itemId, oldStatus, status, currentItem.menu_item.routing_zone)
@@ -169,7 +168,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'Invalid routing zone' })
     }
 
-    const queue = getQueueByZone(routingZone as RoutingZone)
+    const queue = await getQueueByZone(routingZone as RoutingZone)
     return reply.send(queue)
   })
 }
