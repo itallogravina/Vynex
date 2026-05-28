@@ -48,6 +48,8 @@ export type Category = {
   created_at: string
 }
 
+export type CategoryWithItems = Category & { items: MenuItem[] }
+
 export type OrderItem = {
   id: string
   order_id: string
@@ -64,6 +66,8 @@ export type Order = {
   table_id: string
   routing_mode: OrderRoutingMode
   status: 'open' | 'closed'
+  payment_method?: 'cash' | 'card'
+  closed_at?: string
   created_at: string
   updated_at: string
 }
@@ -73,6 +77,33 @@ export type Table = {
   name: string
   seats: number
   created_at: string
+}
+
+export type TableWithStatus = Table & {
+  status: 'free' | 'occupied'
+  order_id?: string
+}
+
+// Order shape returned in queue responses — includes resolved table_name
+export type QueueOrder = Order & { table_name: string }
+
+// Full queue item shape (order item + resolved menu item + order with table name)
+export type QueueItem = OrderItem & {
+  menu_item: MenuItem
+  order: QueueOrder
+}
+
+// Open order shape for the cashier billing view
+export type OpenOrder = {
+  id: string
+  table_id: string
+  table_name: string
+  routing_mode: OrderRoutingMode
+  status: 'open'
+  created_at: string
+  updated_at: string
+  items: (OrderItem & { menu_item: MenuItem })[]
+  total: number
 }
 
 // ============================================================================
@@ -89,7 +120,7 @@ export type CreateOrderResponse = Order
 export type AddOrderItemRequest = {
   menu_item_id: string
   quantity: number
-  notes?: string
+  notes?: string | undefined
 }
 
 export type AddOrderItemResponse = OrderItem
@@ -100,14 +131,45 @@ export type UpdateItemStatusRequest = {
 
 export type UpdateItemStatusResponse = OrderItem
 
+export type CloseOrderRequest = {
+  payment_method: 'cash' | 'card'
+}
+
+export type CloseOrderResponse = Order
+
 export type GetOrderResponse = Order & {
   items: (OrderItem & { menu_item: MenuItem })[]
 }
 
-export type GetQueueResponse = (OrderItem & {
-  menu_item: MenuItem
-  order: Order
-})[]
+export type GetQueueResponse = QueueItem[]
+
+export type CreateTableRequest = {
+  name: string
+  seats: number
+}
+
+export type UpdateTableRequest = {
+  name: string
+  seats: number
+}
+
+export type CreateCategoryRequest = {
+  name: string
+  routing_zone: RoutingZone
+}
+
+export type CreateMenuItemRequest = {
+  category_id: string
+  name: string
+  price: number
+  routing_zone: RoutingZone
+}
+
+export type UpdateMenuItemRequest = {
+  name: string
+  price: number
+  routing_zone: RoutingZone
+}
 
 // ============================================================================
 // WEBSOCKET EVENT TYPES
@@ -118,6 +180,7 @@ export type WebSocketEvent =
   | ItemAddedEvent
   | ItemStatusChangedEvent
   | QueueSnapshotEvent
+  | OrderClosedEvent
 
 export type OrderCreatedEvent = {
   type: 'order:created'
@@ -142,5 +205,11 @@ export type ItemStatusChangedEvent = {
 export type QueueSnapshotEvent = {
   type: 'queue:snapshot'
   routing_zone: RoutingZone
-  items: (OrderItem & { menu_item: MenuItem; order: Order })[]
+  items: QueueItem[]
+}
+
+export type OrderClosedEvent = {
+  type: 'order:closed'
+  order_id: string
+  table_id: string
 }

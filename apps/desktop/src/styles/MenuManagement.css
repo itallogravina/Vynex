@@ -1,0 +1,290 @@
+.menu-mgmt {
+  overflow: hidden;
+}
+
+.menu-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Categories sidebar */
+.categories-panel {
+  width: 240px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.panel-title {
+  padding: 1rem 1.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #95a5a6;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.categories-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+
+.cat-item:hover {
+  background: #f5f5f5;
+}
+
+.cat-item.selected {
+  background: #eaf4fb;
+  border-left-color: #3498db;
+}
+
+.cat-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.cat-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-zone-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  width: fit-content;
+}
+
+.cat-count {
+  font-size: 0.75rem;
+  color: #95a5a6;
+  font-weight: 600;
+  min-width: 1rem;
+  text-align: right;
+}
+
+.cat-delete-btn {
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.cat-delete-btn:hover {
+  color: #e74c3c;
+  background: #fadbd8;
+}
+
+.cat-add-form {
+  padding: 0.75rem;
+  border-top: 1px solid #ecf0f1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cat-add-form input,
+.cat-add-form select {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.cat-add-form input:focus {
+  border-color: #3498db;
+}
+
+.cat-form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cat-form-actions button {
+  flex: 1;
+  padding: 0.4rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ecf0f1;
+  color: #2c3e50;
+}
+
+.cat-form-actions button.btn-confirm {
+  background: #27ae60;
+  color: white;
+}
+
+.cat-form-actions button.btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cat-add-btn {
+  margin: 0.75rem;
+  padding: 0.6rem;
+  background: none;
+  border: 2px dashed #bdc3c7;
+  border-radius: 6px;
+  color: #95a5a6;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cat-add-btn:hover {
+  border-color: #27ae60;
+  color: #27ae60;
+}
+
+/* Items main panel */
+.items-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.items-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.items-panel-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-right: 0.5rem;
+}
+
+.zone-tag {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+.zone-tag-sm {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+}
+
+.menu-items-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.menu-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: white;
+  border-radius: 7px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: opacity 0.15s;
+}
+
+.item-disabled {
+  opacity: 0.5;
+}
+
+.menu-item-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.menu-item-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.menu-item-price {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #16a085;
+  min-width: 70px;
+  text-align: right;
+}
+
+.menu-item-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.toggle-btn {
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+
+.toggle-btn.enabled {
+  background: #d5f5e3;
+  color: #1e8449;
+}
+
+.toggle-btn.disabled {
+  background: #f0f0f0;
+  color: #95a5a6;
+}
+
+/* Reuse modal styles from TableManagement.css — they share .modal-overlay, .modal, etc */

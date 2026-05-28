@@ -3,6 +3,7 @@ import {
   ItemAddedEvent,
   ItemStatusChangedEvent,
   QueueSnapshotEvent,
+  OrderClosedEvent,
   RoutingZone,
   ItemStatus,
 } from '@vynex/shared'
@@ -58,7 +59,7 @@ export function broadcastItemAdded(
     type: 'item:added',
     item: {
       id: itemId,
-      order_id: '', // Will be filled by caller if needed
+      order_id: '',
       menu_item_id: '',
       quantity,
       status: 'pending' as ItemStatus,
@@ -95,7 +96,6 @@ export function broadcastItemStatusChanged(
     routing_zone,
   }
 
-  // Send to all clients watching this zone
   broadcastToZone(event, routing_zone)
 }
 
@@ -110,12 +110,31 @@ export function broadcastQueueSnapshot(routing_zone: RoutingZone): void {
   broadcastToZone(event, routing_zone)
 }
 
+export function broadcastAllQueueSnapshots(): void {
+  ;[RoutingZone.KITCHEN, RoutingZone.BAR, RoutingZone.CASHIER].forEach(zone => {
+    broadcastQueueSnapshot(zone)
+  })
+}
+
+export function broadcastOrderClosed(orderId: string, tableId: string): void {
+  const event: OrderClosedEvent = {
+    type: 'order:closed',
+    order_id: orderId,
+    table_id: tableId,
+  }
+  const message = JSON.stringify(event)
+  connectedClients.forEach(client => {
+    if (client.socket.readyState === 1) {
+      client.socket.send(message)
+    }
+  })
+}
+
 function broadcastToZone(event: WebSocketEvent, routing_zone: RoutingZone): void {
   const message = JSON.stringify(event)
 
   connectedClients.forEach(client => {
     if (client.routing_zones.has(routing_zone) && client.socket.readyState === 1) {
-      // readyState 1 = OPEN
       client.socket.send(message, (err: any) => {
         if (err) {
           console.error(`Error broadcasting to client: ${err.message}`)

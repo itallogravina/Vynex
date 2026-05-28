@@ -1,18 +1,18 @@
 import { useEffect, useState, useRef } from 'react'
-import { RoutingZone, ItemAddedEvent, ItemStatusChangedEvent, QueueSnapshotEvent, OrderItem } from '@vynex/shared'
+import { RoutingZone, QueueItem, ItemStatusChangedEvent, QueueSnapshotEvent } from '@vynex/shared'
 
-type QueueEvent = ItemAddedEvent | ItemStatusChangedEvent | QueueSnapshotEvent
+type QueueEvent = ItemStatusChangedEvent | QueueSnapshotEvent
 
 interface UseQueueResult {
-  items: OrderItem[]
+  items: QueueItem[]
   isConnected: boolean
-  error?: string
+  error: string | undefined
 }
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws'
 
 export function useQueue(zone: RoutingZone): UseQueueResult {
-  const [items, setItems] = useState<OrderItem[]>([])
+  const [items, setItems] = useState<QueueItem[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string>()
   const wsRef = useRef<WebSocket | null>(null)
@@ -34,11 +34,6 @@ export function useQueue(zone: RoutingZone): UseQueueResult {
 
         if (data.type === 'queue:snapshot' && data.routing_zone === zone) {
           setItems(data.items)
-        } else if (data.type === 'item:added' && data.routing_zone === zone) {
-          setItems(prev => {
-            const exists = prev.some(item => item.id === data.item.id)
-            return exists ? prev : [...prev, data.item]
-          })
         } else if (data.type === 'item:status_changed' && data.routing_zone === zone) {
           setItems(prev =>
             prev.map(item =>

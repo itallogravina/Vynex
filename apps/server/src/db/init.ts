@@ -19,6 +19,15 @@ export function initializeDatabase(dbPath: string = './vynex.db'): Database.Data
   const schema = readFileSync(schemaPath, 'utf-8')
   db.exec(schema)
 
+  // Migrate: add new columns to orders if they don't exist (handles existing DBs)
+  const orderCols = (db!.prepare('PRAGMA table_info(orders)').all() as { name: string }[]).map(c => c.name)
+  if (!orderCols.includes('payment_method')) {
+    db!.exec("ALTER TABLE orders ADD COLUMN payment_method TEXT CHECK(payment_method IN ('cash', 'card'))")
+  }
+  if (!orderCols.includes('closed_at')) {
+    db!.exec('ALTER TABLE orders ADD COLUMN closed_at TEXT')
+  }
+
   // Seed default venue if empty
   const venueCount = db!.prepare('SELECT COUNT(*) as count FROM venues').get() as { count: number }
   if (venueCount.count === 0) {

@@ -2,22 +2,18 @@ import { RoutingZone, ItemStatus } from '@vynex/shared'
 import { useQueue } from '../hooks/useQueue'
 import '../styles/QueueScreen.css'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 export default function BarScreen() {
   const { items, isConnected, error } = useQueue(RoutingZone.BAR)
 
-  const updateStatus = async (itemId: string, newStatus: ItemStatus) => {
-    const item = items.find(i => i.id === itemId)
-    if (!item) return
-
+  const updateStatus = async (itemId: string, orderId: string, newStatus: ItemStatus) => {
     try {
-      const response = await fetch(
-        `http://localhost:3000/orders/${item.order_id}/items/${itemId}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus }),
-        }
-      )
+      const response = await fetch(`${API_URL}/orders/${orderId}/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
       if (!response.ok) throw new Error('Failed to update status')
     } catch (err) {
       console.error('Error updating item status:', err)
@@ -51,7 +47,7 @@ export default function BarScreen() {
                   <span className="quantity">×{item.quantity}</span>
                 </div>
                 <div className="item-meta">
-                  <p className="table-name">Table {item.order_id?.substring(0, 8)}</p>
+                  <p className="table-name">{item.order.table_name}</p>
                   <p className="status-badge">{item.status.toUpperCase()}</p>
                 </div>
                 {item.notes && <p className="item-notes">{item.notes}</p>}
@@ -59,7 +55,7 @@ export default function BarScreen() {
                   {item.status === 'pending' && (
                     <button
                       className="btn btn-primary"
-                      onClick={() => updateStatus(item.id, ItemStatus.PREPARING)}
+                      onClick={() => updateStatus(item.id, item.order_id, ItemStatus.PREPARING)}
                     >
                       Start Prep
                     </button>
@@ -67,7 +63,7 @@ export default function BarScreen() {
                   {item.status === 'preparing' && (
                     <button
                       className="btn btn-success"
-                      onClick={() => updateStatus(item.id, ItemStatus.READY)}
+                      onClick={() => updateStatus(item.id, item.order_id, ItemStatus.READY)}
                     >
                       Mark Ready
                     </button>

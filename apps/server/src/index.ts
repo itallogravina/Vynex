@@ -3,6 +3,8 @@ import FastifyWebSocket from '@fastify/websocket'
 import { VYNEX_VERSION } from '@vynex/shared'
 import { initializeDatabase } from './db/init'
 import { registerOrderRoutes } from './routes/orders'
+import { registerTableRoutes } from './routes/tables'
+import { registerMenuRoutes } from './routes/menu'
 import { registerWebSocketHandler } from './ws/handler'
 
 async function main() {
@@ -28,8 +30,10 @@ async function main() {
   // Register WebSocket handler (must be before order routes for proper routing)
   await registerWebSocketHandler(server)
 
-  // Register order routing endpoints
+  // Register routes
   await registerOrderRoutes(server)
+  await registerTableRoutes(server)
+  await registerMenuRoutes(server)
 
   const port = Number(process.env['PORT'] ?? 3000)
 

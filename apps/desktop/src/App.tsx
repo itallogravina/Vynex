@@ -4,9 +4,20 @@ import { OrderScreen } from './screens/OrderScreen'
 import KitchenScreen from './screens/KitchenScreen'
 import BarScreen from './screens/BarScreen'
 import CashierScreen from './screens/CashierScreen'
+import TableManagementScreen from './screens/TableManagementScreen'
+import MenuManagementScreen from './screens/MenuManagementScreen'
 import './App.css'
 
-type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier'
+type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'menu'
+
+const NAV: { id: ScreenType; label: string }[] = [
+  { id: 'order', label: 'Order' },
+  { id: 'kitchen', label: 'Kitchen' },
+  { id: 'bar', label: 'Bar' },
+  { id: 'cashier', label: 'Cashier' },
+  { id: 'tables', label: 'Tables' },
+  { id: 'menu', label: 'Menu' },
+]
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('order')
@@ -21,42 +32,29 @@ export default function App() {
         return <BarScreen />
       case 'cashier':
         return <CashierScreen />
+      case 'tables':
+        return <TableManagementScreen />
+      case 'menu':
+        return <MenuManagementScreen />
     }
   }
 
   return (
     <div className="app">
       <div className="screen-selector">
-        <button
-          className={`screen-btn ${currentScreen === 'order' ? 'active' : ''}`}
-          onClick={() => setCurrentScreen('order')}
-        >
-          Order
-        </button>
-        <button
-          className={`screen-btn ${currentScreen === 'kitchen' ? 'active' : ''}`}
-          onClick={() => setCurrentScreen('kitchen')}
-        >
-          Kitchen
-        </button>
-        <button
-          className={`screen-btn ${currentScreen === 'bar' ? 'active' : ''}`}
-          onClick={() => setCurrentScreen('bar')}
-        >
-          Bar
-        </button>
-        <button
-          className={`screen-btn ${currentScreen === 'cashier' ? 'active' : ''}`}
-          onClick={() => setCurrentScreen('cashier')}
-        >
-          Cashier
-        </button>
+        {NAV.map(({ id, label }) => (
+          <button
+            key={id}
+            className={`screen-btn ${currentScreen === id ? 'active' : ''}`}
+            onClick={() => setCurrentScreen(id)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
       <div className="screen-content">
         {renderScreen()}
-        <footer className="app-footer">
-          Vynex v{VYNEX_VERSION}
-        </footer>
+        <footer className="app-footer">Vynex v{VYNEX_VERSION}</footer>
       </div>
     </div>
   )
