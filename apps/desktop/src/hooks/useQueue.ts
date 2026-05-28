@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { RoutingZone, QueueItem, ItemStatusChangedEvent, QueueSnapshotEvent } from '@vynex/shared'
+import { useServerUrl } from '../context/ServerUrlContext'
 
 type QueueEvent = ItemStatusChangedEvent | QueueSnapshotEvent
 
@@ -9,16 +10,15 @@ interface UseQueueResult {
   error: string | undefined
 }
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws'
-
 export function useQueue(zone: RoutingZone): UseQueueResult {
+  const { wsUrl } = useServerUrl()
   const [items, setItems] = useState<QueueItem[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string>()
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    const url = new URL(WS_URL)
+    const url = new URL(wsUrl)
     url.searchParams.set('zones', zone)
 
     const ws = new WebSocket(url.toString())
@@ -60,7 +60,7 @@ export function useQueue(zone: RoutingZone): UseQueueResult {
     return () => {
       ws.close()
     }
-  }, [zone])
+  }, [zone, wsUrl])
 
   return { items, isConnected, error }
 }

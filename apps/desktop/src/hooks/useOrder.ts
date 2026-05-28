@@ -7,9 +7,7 @@ import {
   RoutingZone,
   AddOrderItemRequest,
 } from '@vynex/shared'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws'
+import { useServerUrl } from '../context/ServerUrlContext'
 
 export type OrderItemWithStatus = OrderItem & {
   menu_item: MenuItem
@@ -17,6 +15,7 @@ export type OrderItemWithStatus = OrderItem & {
 }
 
 export function useOrder() {
+  const { serverUrl, wsUrl } = useServerUrl()
   const [order, setOrder] = useState<Order | null>(null)
   const [items, setItems] = useState<OrderItemWithStatus[]>([])
   const [loading, setLoading] = useState(false)
@@ -29,7 +28,7 @@ export function useOrder() {
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch(`${API_URL}/orders`, {
+        const response = await fetch(`${serverUrl}/orders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ table_id, routing_mode }),
@@ -52,7 +51,7 @@ export function useOrder() {
         setLoading(false)
       }
     },
-    []
+    [serverUrl, wsUrl]
   )
 
   const addItem = useCallback(
@@ -63,7 +62,7 @@ export function useOrder() {
 
       try {
         const body: AddOrderItemRequest = { menu_item_id: menu_item.id, quantity, notes }
-        const response = await fetch(`${API_URL}/orders/${order.id}/items`, {
+        const response = await fetch(`${serverUrl}/orders/${order.id}/items`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -93,7 +92,7 @@ export function useOrder() {
         setLoading(false)
       }
     },
-    [order]
+    [order, serverUrl]
   )
 
   const confirmOrder = useCallback(async () => {
@@ -107,7 +106,7 @@ export function useOrder() {
       wsRef.current.close()
     }
 
-    const ws = new WebSocket(WS_URL)
+    const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       // Subscribe to all routing zones to track items

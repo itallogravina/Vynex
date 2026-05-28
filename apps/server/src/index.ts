@@ -3,7 +3,7 @@ import Fastify from 'fastify'
 import FastifyWebSocket from '@fastify/websocket'
 import { VYNEX_VERSION } from '@vynex/shared'
 import { initializeDatabase, isReplicaMode } from './db/init'
-import { syncNow, startSync } from './db/sync'
+import { syncNow, startSync, getLastSyncAt } from './db/sync'
 import { registerOrderRoutes } from './routes/orders'
 import { registerTableRoutes } from './routes/tables'
 import { registerMenuRoutes } from './routes/menu'
@@ -28,6 +28,7 @@ async function main() {
       status: 'ok',
       version: VYNEX_VERSION,
       db: isReplicaMode() ? 'replica' : 'local',
+      last_sync: getLastSyncAt(),
     }
   })
 
