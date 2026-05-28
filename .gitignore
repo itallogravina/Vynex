@@ -60,4 +60,5 @@ test-results/
 # Rust build artifacts
 apps/desktop/src-tauri/target/
 # Vite (já tem .vite/ genérico, mas garante o específico)
-apps/desktop/.vite/
+apps/desktop/.vite/vynex.db
+apps/desktop/src-tauri/gen/
