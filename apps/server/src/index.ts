@@ -20,6 +20,11 @@ async function main() {
     return { status: 'ok', app: 'vynex-server' }
   })
 
+  // Debug: List all registered routes
+  server.get('/debug/routes', async () => {
+    return server.printRoutes()
+  })
+
   // Register WebSocket handler (must be before order routes for proper routing)
   await registerWebSocketHandler(server)
 

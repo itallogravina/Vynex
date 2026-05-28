@@ -105,7 +105,7 @@ export function getOrderItems(orderId: string): (OrderItem & { menu_item: MenuIt
   const rows = db
     .prepare(
       `
-    SELECT oi.*, mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled
+    SELECT oi.*, mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled, mi.created_at as mi_created_at
     FROM order_items oi
     JOIN menu_items mi ON oi.menu_item_id = mi.id
     WHERE oi.order_id = ?
@@ -130,8 +130,8 @@ export function getOrderItems(orderId: string): (OrderItem & { menu_item: MenuIt
       price: row.price,
       routing_zone: row.routing_zone as RoutingZone,
       enabled: row.enabled === 1,
-      created_at: '', // Not fetched, will be added if needed
-      updated_at: '',
+      created_at: row.mi_created_at || '',
+      updated_at: row.mi_created_at || '',
     },
   }))
 }
@@ -149,7 +149,7 @@ export function getQueueByZone(
       `
     SELECT
       oi.id, oi.order_id, oi.menu_item_id, oi.quantity, oi.status, oi.notes, oi.created_at as oi_created_at, oi.updated_at as oi_updated_at,
-      mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled,
+      mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled, mi.created_at as mi_created_at,
       o.id as o_id, o.table_id, o.routing_mode, o.status as o_status, o.created_at as o_created_at, o.updated_at as o_updated_at
     FROM order_items oi
     JOIN menu_items mi ON oi.menu_item_id = mi.id
@@ -176,8 +176,8 @@ export function getQueueByZone(
       price: row.price,
       routing_zone: row.routing_zone as RoutingZone,
       enabled: row.enabled === 1,
-      created_at: '',
-      updated_at: '',
+      created_at: row.mi_created_at || '',
+      updated_at: row.mi_created_at || '',
     },
     order: {
       id: row.o_id,
@@ -207,7 +207,7 @@ export function getMenuItem(itemId: string): MenuItem | null {
         routing_zone: row.routing_zone as RoutingZone,
         enabled: row.enabled === 1,
         created_at: row.created_at,
-        updated_at: row.updated_at,
+        updated_at: row.created_at,
       }
     : null
 }
@@ -224,7 +224,7 @@ export function listMenuItems(): MenuItem[] {
     routing_zone: row.routing_zone as RoutingZone,
     enabled: row.enabled === 1,
     created_at: row.created_at,
-    updated_at: row.updated_at,
+    updated_at: row.created_at,
   }))
 }
 
@@ -235,7 +235,7 @@ export function listMenuItems(): MenuItem[] {
 export function listTables(): Table[] {
   const db = getDatabase()
   const rows = db
-    .prepare('SELECT id, name, seats, created_at, updated_at FROM tables ORDER BY name')
+    .prepare('SELECT id, name, seats, created_at FROM tables ORDER BY name')
     .all() as any[]
 
   return rows.map(row => ({
@@ -243,14 +243,13 @@ export function listTables(): Table[] {
     name: row.name,
     seats: row.seats,
     created_at: row.created_at,
-    updated_at: row.updated_at,
   }))
 }
 
 export function getTable(tableId: string): Table | null {
   const db = getDatabase()
   const row = db
-    .prepare('SELECT id, name, seats, created_at, updated_at FROM tables WHERE id = ?')
+    .prepare('SELECT id, name, seats, created_at FROM tables WHERE id = ?')
     .get(tableId) as any
 
   return row
@@ -259,7 +258,6 @@ export function getTable(tableId: string): Table | null {
         name: row.name,
         seats: row.seats,
         created_at: row.created_at,
-        updated_at: row.updated_at,
       }
     : null
 }

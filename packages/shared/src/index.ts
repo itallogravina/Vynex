@@ -46,7 +46,6 @@ export type Category = {
   name: string
   routing_zone: RoutingZone
   created_at: string
-  updated_at: string
 }
 
 export type OrderItem = {
@@ -74,7 +73,6 @@ export type Table = {
   name: string
   seats: number
   created_at: string
-  updated_at: string
 }
 
 // ============================================================================

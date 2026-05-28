@@ -8,6 +8,8 @@ import {
   getQueueByZone,
   getMenuItem,
   getTable,
+  listTables,
+  listMenuItems,
 } from '../db/queries'
 import {
   CreateOrderRequest,
@@ -19,6 +21,16 @@ import {
 import { broadcastItemAdded, broadcastItemStatusChanged, broadcastQueueSnapshot } from '../ws/broadcast'
 
 export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
+  // List all tables
+  app.get('/tables', async (request, reply) => {
+    return listTables()
+  })
+
+  // List all menu items
+  app.get('/menu-items', async (request, reply) => {
+    return listMenuItems()
+  })
+
   // Create a new order
   app.post<{ Body: CreateOrderRequest }>('/orders', async (request, reply) => {
     const { table_id, routing_mode } = request.body
