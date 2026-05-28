@@ -1,7 +1,9 @@
 import Fastify from 'fastify'
+import FastifyWebSocket from '@fastify/websocket'
 import { VYNEX_VERSION } from '@vynex/shared'
 import { initializeDatabase } from './db/init'
 import { registerOrderRoutes } from './routes/orders'
+import { registerWebSocketHandler } from './ws/handler'
 
 async function main() {
   // Initialize database
@@ -10,10 +12,16 @@ async function main() {
 
   const server = Fastify({ logger: true })
 
+  // Register WebSocket plugin
+  await server.register(FastifyWebSocket)
+
   // Health check endpoint
   server.get('/health', async () => {
     return { status: 'ok', app: 'vynex-server' }
   })
+
+  // Register WebSocket handler (must be before order routes for proper routing)
+  await registerWebSocketHandler(server)
 
   // Register order routing endpoints
   await registerOrderRoutes(server)

@@ -16,6 +16,7 @@ import {
   ItemStatus,
   RoutingZone,
 } from '@vynex/shared'
+import { broadcastItemAdded, broadcastItemStatusChanged, broadcastQueueSnapshot } from '../ws/broadcast'
 
 export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   // Create a new order
@@ -65,6 +66,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const item = addOrderItem(id, menu_item_id, quantity, notes)
+
+      // Broadcast to queue (if auto routing mode, broadcast immediately)
+      if (order.routing_mode === 'auto') {
+        const table = getTable(order.table_id)
+        broadcastItemAdded(item.id, menuItem.name, menuItem.routing_zone, table?.name || 'Unknown', quantity)
+        broadcastQueueSnapshot(menuItem.routing_zone)
+      }
+
       return reply.status(201).send(item)
     }
   )
@@ -88,7 +97,19 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Invalid status' })
       }
 
+      // Get current item status before update
+      const items = getOrderItems(id)
+      const currentItem = items.find(item => item.id === itemId)
+      const oldStatus = currentItem?.status
+
       const item = updateOrderItemStatus(itemId, status)
+
+      // Broadcast status change
+      if (oldStatus && currentItem) {
+        broadcastItemStatusChanged(itemId, oldStatus, status, currentItem.menu_item.routing_zone)
+        broadcastQueueSnapshot(currentItem.menu_item.routing_zone)
+      }
+
       return reply.send(item)
     }
   )
