@@ -5,9 +5,18 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "build:exe": "pnpm build && pkg dist/index.js --target node22-win-x64 --output ../../installer/assets/vynex-server.exe",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/.pnpm/@libsql+win32-x64-msvc*/node_modules/@libsql/win32-x64-msvc/*.node"
+    ],
+    "targets": [
+      "node22-win-x64"
+    ]
   },
   "dependencies": {
     "@fastify/websocket": "^11.2.0",
@@ -19,6 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
+    "@yao-pkg/pkg": "^6.20.0",
     "tsx": "^4.19.4",
     "typescript": "*"
   }
