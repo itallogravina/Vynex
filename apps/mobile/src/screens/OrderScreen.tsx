@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, StyleSheet } from 'react-native'
 import {
   Table,
@@ -23,6 +23,7 @@ export default function OrderScreen() {
   const [selectedTable, setSelectedTable] = useState<string>('')
   const [routingMode, setRoutingMode] = useState<OrderRoutingMode>(OrderRoutingMode.MANUAL)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const [order, setOrder] = useState<Order | null>(null)
   const [orderItems, setOrderItems] = useState<OrderItemWithMenu[]>([])
@@ -30,26 +31,29 @@ export default function OrderScreen() {
   const [notes, setNotes] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
-  const queueItemsRef = { current: new Map<string, any>() }
+  const queueItemsRef = useRef<Map<string, any>>(new Map())
+  const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
     const fetchTables = async () => {
       try {
         const res = await fetch(`${API_URL}/tables`)
+        if (!res.ok) throw new Error('Failed to load tables')
         const data = await res.json()
         setTables(data)
       } catch (err) {
-        console.error('Failed to fetch tables:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load tables')
       }
     }
 
     const fetchMenuItems = async () => {
       try {
         const res = await fetch(`${API_URL}/menu-items`)
+        if (!res.ok) throw new Error('Failed to load menu items')
         const data = await res.json()
         setMenuItems(data)
       } catch (err) {
-        console.error('Failed to fetch menu items:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load menu items')
       }
     }
 
@@ -58,13 +62,10 @@ export default function OrderScreen() {
   }, [])
 
   useEffect(() => {
-    if (order) {
-      subscribeToQueues()
-    }
-  }, [order])
+    if (!order) return
 
-  const subscribeToQueues = () => {
     const ws = new WebSocket(WS_URL)
+    wsRef.current = ws
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ action: 'subscribe', routing_zone: 'kitchen' }))
@@ -92,8 +93,13 @@ export default function OrderScreen() {
       }
     }
 
-    return ws
-  }
+    ws.onerror = () => setError('Real-time connection lost — status updates paused')
+
+    return () => {
+      ws.close()
+      wsRef.current = null
+    }
+  }, [order])
 
   const updateItemStatuses = () => {
     setOrderItems(prev =>
@@ -110,6 +116,7 @@ export default function OrderScreen() {
   const handleCreateOrder = async () => {
     if (!selectedTable) return
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch(`${API_URL}/orders`, {
         method: 'POST',
@@ -117,13 +124,16 @@ export default function OrderScreen() {
         body: JSON.stringify({ table_id: selectedTable, routing_mode: routingMode }),
       })
 
-      if (!res.ok) throw new Error('Failed to create order')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to create order')
+      }
 
       const newOrder = (await res.json()) as Order
       setOrder(newOrder)
       setOrderItems([])
     } catch (err) {
-      console.error('Failed to create order:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create order')
     } finally {
       setLoading(false)
     }
@@ -143,7 +153,10 @@ export default function OrderScreen() {
         }),
       })
 
-      if (!res.ok) throw new Error('Failed to add item')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to add item')
+      }
 
       const newItem = (await res.json()) as OrderItem
       const itemWithMenu: OrderItemWithMenu = {
@@ -155,7 +168,7 @@ export default function OrderScreen() {
       setQuantity('1')
       setNotes('')
     } catch (err) {
-      console.error('Failed to add item:', err)
+      setError(err instanceof Error ? err.message : 'Failed to add item')
     }
   }
 
@@ -185,6 +198,12 @@ export default function OrderScreen() {
       <ScrollView style={styles.container}>
         <View style={styles.setupContainer}>
           <Text style={styles.setupTitle}>Create Order</Text>
+
+          {error && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>Table:</Text>
@@ -375,6 +394,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
     color: '#333',
+  },
+  errorBanner: {
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 14,
   },
   formGroup: {
     marginBottom: 20,

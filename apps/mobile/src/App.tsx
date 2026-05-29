@@ -1,13 +1,16 @@
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView, StyleSheet } from 'react-native'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import OrderScreen from './screens/OrderScreen'
 
 export default function App(): React.JSX.Element {
   return (
-    <SafeAreaView style={styles.container}>
-      <OrderScreen />
-      <StatusBar style="auto" />
-    </SafeAreaView>
+    <ErrorBoundary>
+      <SafeAreaView style={styles.container}>
+        <OrderScreen />
+        <StatusBar style="auto" />
+      </SafeAreaView>
+    </ErrorBoundary>
   )
 }
 

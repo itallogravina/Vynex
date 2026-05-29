@@ -11,32 +11,35 @@ export function OrderScreen() {
   const [selectedTable, setSelectedTable] = useState<string>('')
   const [routingMode, setRoutingMode] = useState<OrderRoutingMode>(OrderRoutingMode.MANUAL)
   const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const [quantity, setQuantity] = useState(1)
   const [notes, setNotes] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null)
 
-  const { order, items, createOrder, addItem } = useOrder()
+  const { order, items, error: orderError, createOrder, addItem } = useOrder()
 
   useEffect(() => {
     const fetchTables = async () => {
       try {
         const res = await fetch(`${API_URL}/tables`)
+        if (!res.ok) throw new Error('Failed to load tables')
         const data = await res.json()
         setTables(data)
       } catch (err) {
-        console.error('Failed to fetch tables:', err)
+        setFetchError(err instanceof Error ? err.message : 'Failed to load tables')
       }
     }
 
     const fetchMenuItems = async () => {
       try {
         const res = await fetch(`${API_URL}/menu-items`)
+        if (!res.ok) throw new Error('Failed to load menu items')
         const data = await res.json()
         setMenuItems(data)
       } catch (err) {
-        console.error('Failed to fetch menu items:', err)
+        setFetchError(err instanceof Error ? err.message : 'Failed to load menu items')
       }
     }
 
@@ -49,8 +52,6 @@ export function OrderScreen() {
     setLoading(true)
     try {
       await createOrder(selectedTable, routingMode)
-    } catch (err) {
-      console.error('Failed to create order:', err)
     } finally {
       setLoading(false)
     }
@@ -61,8 +62,8 @@ export function OrderScreen() {
       await addItem(menuItem, quantity, notes || undefined)
       setQuantity(1)
       setNotes('')
-    } catch (err) {
-      console.error('Failed to add item:', err)
+    } catch {
+      // error shown via orderError
     }
   }
 
@@ -92,6 +93,12 @@ export function OrderScreen() {
       <div className="order-screen">
         <div className="order-setup">
           <h2>Create Order</h2>
+
+          {(fetchError || orderError) && (
+            <div className="order-error">
+              {fetchError || orderError}
+            </div>
+          )}
 
           <div className="form-group">
             <label>Table:</label>

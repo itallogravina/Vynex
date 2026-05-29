@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
+import FastifyCors from '@fastify/cors'
 import FastifyWebSocket from '@fastify/websocket'
 import { VYNEX_VERSION } from '@vynex/shared'
 import { initializeDatabase, isReplicaMode } from './db/init'
@@ -21,6 +22,10 @@ async function main() {
 
   const server = Fastify({ logger: true })
 
+  await server.register(FastifyCors, {
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  })
   await server.register(FastifyWebSocket)
 
   server.get('/health', async () => {
@@ -33,7 +38,7 @@ async function main() {
   })
 
   // TODO: remove before production
-  server.post('/admin/sync', async (request, reply) => {
+  server.post('/admin/sync', async (_request, reply) => {
     if (!isReplicaMode()) {
       return reply.status(400).send({ error: 'Not in replica mode — no Turso credentials configured' })
     }

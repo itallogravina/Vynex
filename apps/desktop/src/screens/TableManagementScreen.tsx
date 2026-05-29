@@ -14,6 +14,7 @@ export default function TableManagementScreen() {
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null)
   const [form, setForm] = useState<FormState>({ name: '', seats: '4' })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const fetchTables = useCallback(() => {
@@ -44,6 +45,7 @@ export default function TableManagementScreen() {
   const closeForm = () => {
     setShowForm(false)
     setEditTarget(null)
+    setSaveError(null)
   }
 
   const handleSave = async () => {
@@ -51,6 +53,7 @@ export default function TableManagementScreen() {
     if (!form.name.trim() || !seats || seats < 1) return
 
     setSaving(true)
+    setSaveError(null)
     try {
       const url = editTarget ? `${API_URL}/tables/${editTarget.id}` : `${API_URL}/tables`
       const method = editTarget ? 'PATCH' : 'POST'
@@ -61,11 +64,14 @@ export default function TableManagementScreen() {
         body: JSON.stringify({ name: form.name.trim(), seats }),
       })
 
-      if (!res.ok) throw new Error('Failed to save table')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to save table')
+      }
       closeForm()
       fetchTables()
     } catch (err) {
-      console.error(err)
+      setSaveError(err instanceof Error ? err.message : 'Failed to save table')
     } finally {
       setSaving(false)
     }
@@ -77,7 +83,6 @@ export default function TableManagementScreen() {
       return
     }
     setDeleteError(null)
-
     const res = await fetch(`${API_URL}/tables/${table.id}`, { method: 'DELETE' })
     if (res.ok) {
       fetchTables()
@@ -143,6 +148,12 @@ export default function TableManagementScreen() {
         <div className="modal-overlay" onClick={closeForm}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>{editTarget ? 'Edit Table' : 'New Table'}</h2>
+
+            {saveError && (
+              <div className="mgmt-error" onClick={() => setSaveError(null)}>
+                {saveError} ✕
+              </div>
+            )}
 
             <div className="modal-field">
               <label>Name</label>

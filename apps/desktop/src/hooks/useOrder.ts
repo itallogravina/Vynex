@@ -41,7 +41,6 @@ export function useOrder() {
         const newOrder = (await response.json()) as Order
         setOrder(newOrder)
         setItems([])
-        subscribeToQueues(newOrder)
         return newOrder
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -51,7 +50,7 @@ export function useOrder() {
         setLoading(false)
       }
     },
-    [serverUrl, wsUrl]
+    [serverUrl]
   )
 
   const addItem = useCallback(
@@ -78,10 +77,7 @@ export function useOrder() {
           menu_item,
         }
 
-        // For manual mode, item is sent immediately, so update local state
-        if (order.routing_mode === OrderRoutingMode.MANUAL) {
-          setItems(prev => [...prev, itemWithStatus])
-        }
+        setItems(prev => [...prev, itemWithStatus])
 
         return itemWithStatus
       } catch (err) {
@@ -101,7 +97,7 @@ export function useOrder() {
     return order
   }, [order])
 
-  const subscribeToQueues = useCallback((newOrder: Order) => {
+  const subscribeToQueues = useCallback((_newOrder: Order) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.close()
     }
@@ -145,7 +141,7 @@ export function useOrder() {
     }
 
     wsRef.current = ws
-  }, [])
+  }, [wsUrl])
 
   const updateItemStatuses = useCallback(() => {
     setItems(prev =>

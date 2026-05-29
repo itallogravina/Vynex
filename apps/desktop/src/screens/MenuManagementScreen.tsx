@@ -73,18 +73,22 @@ export default function MenuManagementScreen() {
   const handleAddCategory = async () => {
     if (!catForm.name.trim()) return
     setSavingCat(true)
+    setOpError(null)
     try {
       const res = await fetch(`${API_URL}/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: catForm.name.trim(), routing_zone: catForm.routing_zone }),
       })
-      if (!res.ok) throw new Error('Failed to create category')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to create category')
+      }
       setShowCatForm(false)
       setCatForm({ name: '', routing_zone: RoutingZone.KITCHEN })
       fetchCategories()
     } catch (err) {
-      console.error(err)
+      setOpError(err instanceof Error ? err.message : 'Failed to create category')
     } finally {
       setSavingCat(false)
     }
@@ -96,10 +100,16 @@ export default function MenuManagementScreen() {
       setOpError(`Delete all items in "${cat.name}" first`)
       return
     }
-    const res = await fetch(`${API_URL}/categories/${catId}`, { method: 'DELETE' })
-    if (res.ok) {
+    try {
+      const res = await fetch(`${API_URL}/categories/${catId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to delete category')
+      }
       if (selectedCatId === catId) setSelectedCatId(null)
       fetchCategories()
+    } catch (err) {
+      setOpError(err instanceof Error ? err.message : 'Failed to delete category')
     }
   }
 
@@ -136,46 +146,63 @@ export default function MenuManagementScreen() {
     if (!itemForm.name.trim() || isNaN(price) || price < 0) return
 
     setSavingItem(true)
+    setOpError(null)
     try {
-      if (editItem) {
-        await fetch(`${API_URL}/menu-items/${editItem.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: itemForm.name.trim(),
-            price,
-            routing_zone: itemForm.routing_zone,
-          }),
-        })
-      } else {
-        await fetch(`${API_URL}/menu-items`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            category_id: selectedCatId,
-            name: itemForm.name.trim(),
-            price,
-            routing_zone: itemForm.routing_zone,
-          }),
-        })
+      const res = editItem
+        ? await fetch(`${API_URL}/menu-items/${editItem.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: itemForm.name.trim(),
+              price,
+              routing_zone: itemForm.routing_zone,
+            }),
+          })
+        : await fetch(`${API_URL}/menu-items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              category_id: selectedCatId,
+              name: itemForm.name.trim(),
+              price,
+              routing_zone: itemForm.routing_zone,
+            }),
+          })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to save item')
       }
       closeItemForm()
       fetchCategories()
     } catch (err) {
-      console.error(err)
+      setOpError(err instanceof Error ? err.message : 'Failed to save item')
     } finally {
       setSavingItem(false)
     }
   }
 
   const handleToggleItem = async (item: MenuItem) => {
-    await fetch(`${API_URL}/menu-items/${item.id}/toggle`, { method: 'PATCH' })
-    fetchCategories()
+    try {
+      const res = await fetch(`${API_URL}/menu-items/${item.id}/toggle`, { method: 'PATCH' })
+      if (!res.ok) throw new Error('Failed to toggle item')
+      fetchCategories()
+    } catch (err) {
+      setOpError(err instanceof Error ? err.message : 'Failed to toggle item')
+    }
   }
 
   const handleDeleteItem = async (item: MenuItem) => {
-    await fetch(`${API_URL}/menu-items/${item.id}`, { method: 'DELETE' })
-    fetchCategories()
+    try {
+      const res = await fetch(`${API_URL}/menu-items/${item.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to delete item')
+      }
+      fetchCategories()
+    } catch (err) {
+      setOpError(err instanceof Error ? err.message : 'Failed to delete item')
+    }
   }
 
   return (

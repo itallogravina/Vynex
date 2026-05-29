@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { VYNEX_VERSION } from '@vynex/shared'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { ServerUrlProvider } from './context/ServerUrlContext'
 import { useConnectionStatus } from './hooks/useConnectionStatus'
 import { OrderScreen } from './screens/OrderScreen'
@@ -68,8 +69,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <ServerUrlProvider>
-      <AppShell />
-    </ServerUrlProvider>
+    <ErrorBoundary>
+      <ServerUrlProvider>
+        <AppShell />
+      </ServerUrlProvider>
+    </ErrorBoundary>
   )
 }
