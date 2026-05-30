@@ -13,6 +13,13 @@ import {
   OrderRoutingMode,
   ItemStatus,
   RoutingZone,
+  User,
+  Role,
+  LoginMethod,
+  SalesReport,
+  TopItemsReport,
+  PerWaiterReport,
+  ShiftSummaryReport,
 } from '@vynex/shared'
 
 // ============================================================================
@@ -46,14 +53,18 @@ export async function getDefaultVenueId(): Promise<string | null> {
 // ORDER QUERIES
 // ============================================================================
 
-export async function createOrder(tableId: string, routingMode: OrderRoutingMode): Promise<Order> {
+export async function createOrder(
+  tableId: string,
+  routingMode: OrderRoutingMode,
+  openedBy?: string
+): Promise<Order> {
   const client = getClient()
   const id = uuid()
   const now = new Date().toISOString()
 
   await client.execute({
-    sql: 'INSERT INTO orders (id, table_id, routing_mode, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    args: [id, tableId, routingMode, 'open', now, now],
+    sql: 'INSERT INTO orders (id, table_id, routing_mode, status, opened_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    args: [id, tableId, routingMode, 'open', openedBy ?? null, now, now],
   })
 
   return (await getOrder(id))!
@@ -115,6 +126,7 @@ function mapOrder(row: Record<string, unknown>): Order {
     status: row.status as 'open' | 'closed',
     payment_method: (row.payment_method as 'cash' | 'card') ?? undefined,
     closed_at: (row.closed_at as string) ?? undefined,
+    opened_by: (row.opened_by as string) ?? undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -128,15 +140,16 @@ export async function addOrderItem(
   orderId: string,
   menuItemId: string,
   quantity: number,
-  notes?: string
+  notes?: string,
+  addedBy?: string
 ): Promise<OrderItem> {
   const client = getClient()
   const id = uuid()
   const now = new Date().toISOString()
 
   await client.execute({
-    sql: 'INSERT INTO order_items (id, order_id, menu_item_id, quantity, status, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    args: [id, orderId, menuItemId, quantity, 'pending', notes ?? null, now, now],
+    sql: 'INSERT INTO order_items (id, order_id, menu_item_id, quantity, status, notes, added_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    args: [id, orderId, menuItemId, quantity, 'pending', notes ?? null, addedBy ?? null, now, now],
   })
 
   return (await getOrderItem(id))!
@@ -189,6 +202,7 @@ function mapOrderItem(row: Record<string, unknown>): OrderItem {
     updated_at: row.updated_at as string,
   }
   if (row.notes) item.notes = row.notes as string
+  if (row.added_by) item.added_by = row.added_by as string
   return item
 }
 
@@ -493,5 +507,350 @@ function mapTable(row: Record<string, unknown>): Table {
     name: row.name as string,
     seats: row.seats as number,
     created_at: row.created_at as string,
+  }
+}
+
+// ============================================================================
+// USER QUERIES
+// ============================================================================
+
+function mapUser(row: Record<string, unknown>): User {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    role: row.role as Role,
+    login_method: row.login_method as LoginMethod,
+    enabled: row.enabled === 1 || row.enabled === true,
+  }
+}
+
+export async function createUser(
+  name: string,
+  role: Role,
+  loginMethod: LoginMethod,
+  pinHash?: string,
+  passwordHash?: string
+): Promise<User> {
+  const client = getClient()
+  const id = uuid()
+  const now = new Date().toISOString()
+
+  await client.execute({
+    sql: `INSERT INTO users (id, name, role, login_method, pin_hash, password_hash, enabled, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    args: [id, name, role, loginMethod, pinHash ?? null, passwordHash ?? null, now, now],
+  })
+
+  return (await getUser(id))!
+}
+
+export async function listUsers(): Promise<User[]> {
+  const client = getClient()
+  const result = await client.execute(
+    'SELECT id, name, role, login_method, enabled FROM users ORDER BY name'
+  )
+  return result.rows.map(mapUser)
+}
+
+export async function getUser(id: string): Promise<User | null> {
+  const client = getClient()
+  const result = await client.execute({
+    sql: 'SELECT id, name, role, login_method, enabled FROM users WHERE id = ?',
+    args: [id],
+  })
+  const row = result.rows[0]
+  return row ? mapUser(row) : null
+}
+
+export async function getUserByName(name: string): Promise<(User & { password_hash: string | null }) | null> {
+  const client = getClient()
+  const result = await client.execute({
+    sql: `SELECT id, name, role, login_method, enabled, password_hash
+          FROM users WHERE name = ? AND login_method = 'password' AND enabled = 1`,
+    args: [name],
+  })
+  const row = result.rows[0]
+  if (!row) return null
+  return { ...mapUser(row), password_hash: (row.password_hash as string) ?? null }
+}
+
+export async function getAllPinUsers(): Promise<(User & { pin_hash: string | null })[]> {
+  const client = getClient()
+  const result = await client.execute(
+    `SELECT id, name, role, login_method, enabled, pin_hash
+     FROM users WHERE login_method = 'pin' AND enabled = 1`
+  )
+  return result.rows.map(row => ({ ...mapUser(row), pin_hash: (row.pin_hash as string) ?? null }))
+}
+
+export async function getListLoginUsers(): Promise<{ id: string; name: string }[]> {
+  const client = getClient()
+  const result = await client.execute(
+    `SELECT id, name FROM users WHERE login_method = 'list' AND enabled = 1 ORDER BY name`
+  )
+  return result.rows.map(row => ({ id: row.id as string, name: row.name as string }))
+}
+
+export async function updateUser(
+  id: string,
+  fields: Partial<{
+    name: string
+    role: Role
+    login_method: LoginMethod
+    pin_hash: string | null
+    password_hash: string | null
+    enabled: boolean
+  }>
+): Promise<User> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  const sets: string[] = ['updated_at = ?']
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const args: any[] = [now]
+
+  if (fields.name !== undefined) { sets.push('name = ?'); args.push(fields.name) }
+  if (fields.role !== undefined) { sets.push('role = ?'); args.push(fields.role) }
+  if (fields.login_method !== undefined) { sets.push('login_method = ?'); args.push(fields.login_method) }
+  if ('pin_hash' in fields) { sets.push('pin_hash = ?'); args.push(fields.pin_hash ?? null) }
+  if ('password_hash' in fields) { sets.push('password_hash = ?'); args.push(fields.password_hash ?? null) }
+  if (fields.enabled !== undefined) { sets.push('enabled = ?'); args.push(fields.enabled ? 1 : 0) }
+
+  args.push(id)
+  await client.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args })
+  return (await getUser(id))!
+}
+
+export async function disableUser(id: string): Promise<void> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: 'UPDATE users SET enabled = 0, updated_at = ? WHERE id = ?',
+    args: [now, id],
+  })
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  const client = getClient()
+  await client.execute({ sql: 'DELETE FROM users WHERE id = ?', args: [id] })
+}
+
+export async function userHasOrders(id: string): Promise<boolean> {
+  const client = getClient()
+  const result = await client.execute({
+    sql: 'SELECT COUNT(*) as count FROM orders WHERE opened_by = ?',
+    args: [id],
+  })
+  return Number(result.rows[0]?.count ?? 0) > 0
+}
+
+// ============================================================================
+// SESSION QUERIES
+// ============================================================================
+
+export async function createSession(token: string, userId: string, ttlHours: number): Promise<void> {
+  const client = getClient()
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000).toISOString()
+
+  await client.execute({
+    sql: 'INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)',
+    args: [token, userId, now.toISOString(), expiresAt],
+  })
+}
+
+export async function getSessionUser(token: string): Promise<User | null> {
+  const client = getClient()
+  const result = await client.execute({
+    sql: `SELECT u.id, u.name, u.role, u.login_method, u.enabled
+          FROM sessions s
+          JOIN users u ON s.user_id = u.id
+          WHERE s.id = ? AND s.expires_at > ? AND u.enabled = 1`,
+    args: [token, new Date().toISOString()],
+  })
+  const row = result.rows[0]
+  return row ? mapUser(row) : null
+}
+
+export async function deleteSession(token: string): Promise<void> {
+  const client = getClient()
+  await client.execute({ sql: 'DELETE FROM sessions WHERE id = ?', args: [token] })
+}
+
+export async function deleteExpiredSessions(): Promise<void> {
+  const client = getClient()
+  await client.execute({
+    sql: 'DELETE FROM sessions WHERE expires_at <= ?',
+    args: [new Date().toISOString()],
+  })
+}
+
+// ============================================================================
+// REPORT QUERIES
+// ============================================================================
+
+export async function getSalesReport(
+  from: string,
+  to: string,
+  groupBy: 'day' | 'week' | 'month' = 'day'
+): Promise<SalesReport> {
+  const client = getClient()
+  const fmtMap = { day: '%Y-%m-%d', week: '%Y-W%W', month: '%Y-%m' }
+  const fmt = fmtMap[groupBy]
+
+  const totals = await client.execute({
+    sql: `SELECT COALESCE(SUM(oi.quantity * mi.price), 0) as revenue, COUNT(DISTINCT o.id) as orders
+          FROM orders o
+          JOIN order_items oi ON oi.order_id = o.id
+          JOIN menu_items mi ON mi.id = oi.menu_item_id
+          WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at < ?`,
+    args: [from, to],
+  })
+
+  const byGroup = await client.execute({
+    sql: `SELECT strftime(?, o.closed_at) as date,
+                 COALESCE(SUM(oi.quantity * mi.price), 0) as revenue,
+                 COUNT(DISTINCT o.id) as orders
+          FROM orders o
+          JOIN order_items oi ON oi.order_id = o.id
+          JOIN menu_items mi ON mi.id = oi.menu_item_id
+          WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at < ?
+          GROUP BY date
+          ORDER BY date`,
+    args: [fmt, from, to],
+  })
+
+  return {
+    period: { from, to },
+    total_revenue: Math.round(Number(totals.rows[0]?.revenue ?? 0) * 100) / 100,
+    total_orders: Number(totals.rows[0]?.orders ?? 0),
+    by_day: byGroup.rows.map(row => ({
+      date: row.date as string,
+      revenue: Math.round(Number(row.revenue) * 100) / 100,
+      orders: Number(row.orders),
+    })),
+  }
+}
+
+export async function getTopItemsReport(
+  from: string,
+  to: string,
+  limit: number = 10
+): Promise<TopItemsReport> {
+  const client = getClient()
+
+  const items = await client.execute({
+    sql: `SELECT oi.menu_item_id, mi.name,
+                 SUM(oi.quantity) as quantity_sold,
+                 SUM(oi.quantity * mi.price) as revenue
+          FROM order_items oi
+          JOIN menu_items mi ON mi.id = oi.menu_item_id
+          JOIN orders o ON o.id = oi.order_id
+          WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at < ?
+          GROUP BY oi.menu_item_id
+          ORDER BY revenue DESC
+          LIMIT ?`,
+    args: [from, to, limit],
+  })
+
+  const categories = await client.execute({
+    sql: `SELECT mi.category_id, c.name,
+                 SUM(oi.quantity * mi.price) as revenue
+          FROM order_items oi
+          JOIN menu_items mi ON mi.id = oi.menu_item_id
+          JOIN categories c ON c.id = mi.category_id
+          JOIN orders o ON o.id = oi.order_id
+          WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at < ?
+          GROUP BY mi.category_id
+          ORDER BY revenue DESC
+          LIMIT ?`,
+    args: [from, to, limit],
+  })
+
+  return {
+    top_items: items.rows.map(row => ({
+      menu_item_id: row.menu_item_id as string,
+      name: row.name as string,
+      quantity_sold: Number(row.quantity_sold),
+      revenue: Math.round(Number(row.revenue) * 100) / 100,
+    })),
+    top_categories: categories.rows.map(row => ({
+      category_id: row.category_id as string,
+      name: row.name as string,
+      revenue: Math.round(Number(row.revenue) * 100) / 100,
+    })),
+  }
+}
+
+export async function getPerWaiterReport(from: string, to: string): Promise<PerWaiterReport> {
+  const client = getClient()
+
+  const rows = await client.execute({
+    sql: `SELECT
+            o.opened_by as user_id,
+            COALESCE(u.name, 'Unknown') as name,
+            COUNT(DISTINCT o.id) as orders_opened,
+            COUNT(oi.id) as items_added,
+            COALESCE(SUM(CASE WHEN o.status = 'closed' THEN oi.quantity * mi.price ELSE 0 END), 0) as revenue
+          FROM orders o
+          LEFT JOIN users u ON u.id = o.opened_by
+          LEFT JOIN order_items oi ON oi.order_id = o.id
+          LEFT JOIN menu_items mi ON mi.id = oi.menu_item_id
+          WHERE o.created_at >= ? AND o.created_at < ?
+          GROUP BY o.opened_by
+          ORDER BY revenue DESC`,
+    args: [from, to],
+  })
+
+  return {
+    waiters: rows.rows.map(row => ({
+      user_id: (row.user_id as string) ?? null,
+      name: row.name as string,
+      orders_opened: Number(row.orders_opened),
+      items_added: Number(row.items_added),
+      revenue: Math.round(Number(row.revenue) * 100) / 100,
+    })),
+  }
+}
+
+export async function getShiftSummaryReport(from: string, to: string): Promise<ShiftSummaryReport> {
+  const client = getClient()
+
+  const [opened, closed, stillOpen, revenue] = await Promise.all([
+    client.execute({
+      sql: 'SELECT COUNT(*) as count FROM orders WHERE created_at >= ? AND created_at < ?',
+      args: [from, to],
+    }),
+    client.execute({
+      sql: `SELECT COUNT(*) as count FROM orders WHERE status = 'closed' AND closed_at >= ? AND closed_at < ?`,
+      args: [from, to],
+    }),
+    client.execute({
+      sql: `SELECT COUNT(*) as count FROM orders WHERE status = 'open' AND created_at >= ? AND created_at < ?`,
+      args: [from, to],
+    }),
+    client.execute({
+      sql: `SELECT
+              COALESCE(SUM(CASE WHEN o.payment_method = 'cash' THEN oi.quantity * mi.price ELSE 0 END), 0) as cash,
+              COALESCE(SUM(CASE WHEN o.payment_method = 'card' THEN oi.quantity * mi.price ELSE 0 END), 0) as card,
+              COALESCE(SUM(oi.quantity * mi.price), 0) as total
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN menu_items mi ON mi.id = oi.menu_item_id
+            WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at < ?`,
+      args: [from, to],
+    }),
+  ])
+
+  const rev = revenue.rows[0]!
+  return {
+    period: { from, to },
+    orders_opened: Number(opened.rows[0]?.count ?? 0),
+    orders_closed: Number(closed.rows[0]?.count ?? 0),
+    orders_still_open: Number(stillOpen.rows[0]?.count ?? 0),
+    total_revenue: Math.round(Number(rev.total ?? 0) * 100) / 100,
+    by_payment_method: {
+      cash: Math.round(Number(rev.cash ?? 0) * 100) / 100,
+      card: Math.round(Number(rev.card ?? 0) * 100) / 100,
+    },
   }
 }

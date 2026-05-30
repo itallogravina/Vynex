@@ -57,6 +57,7 @@ export type OrderItem = {
   quantity: number
   status: ItemStatus
   notes?: string
+  added_by?: string
   created_at: string
   updated_at: string
 }
@@ -68,6 +69,7 @@ export type Order = {
   status: 'open' | 'closed'
   payment_method?: 'cash' | 'card'
   closed_at?: string
+  opened_by?: string
   created_at: string
   updated_at: string
 }
@@ -169,6 +171,68 @@ export type UpdateMenuItemRequest = {
   name: string
   price: number
   routing_zone: RoutingZone
+}
+
+// ============================================================================
+// AUTH & USER TYPES
+// ============================================================================
+
+export type Role = 'owner' | 'manager' | 'cashier' | 'waiter' | 'bartender' | 'kitchen'
+
+export type LoginMethod = 'pin' | 'password' | 'list'
+
+export type User = {
+  id: string
+  name: string
+  role: Role
+  login_method: LoginMethod
+  enabled: boolean
+}
+
+export type LoginRequest =
+  | { login_method: 'pin'; pin: string }
+  | { login_method: 'password'; username: string; password: string }
+  | { login_method: 'list'; user_id: string }
+
+export type AuthResponse = {
+  token: string
+  user: { id: string; name: string; role: Role }
+  expires_at: string
+}
+
+// ============================================================================
+// REPORT TYPES
+// ============================================================================
+
+export type SalesReport = {
+  period: { from: string; to: string }
+  total_revenue: number
+  total_orders: number
+  by_day: { date: string; revenue: number; orders: number }[]
+}
+
+export type TopItemsReport = {
+  top_items: { menu_item_id: string; name: string; quantity_sold: number; revenue: number }[]
+  top_categories: { category_id: string; name: string; revenue: number }[]
+}
+
+export type PerWaiterReport = {
+  waiters: {
+    user_id: string | null
+    name: string
+    orders_opened: number
+    items_added: number
+    revenue: number
+  }[]
+}
+
+export type ShiftSummaryReport = {
+  period: { from: string; to: string }
+  orders_opened: number
+  orders_closed: number
+  orders_still_open: number
+  total_revenue: number
+  by_payment_method: { cash: number; card: number }
 }
 
 // ============================================================================
