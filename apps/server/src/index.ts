@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
 import FastifyCors from '@fastify/cors'
+import FastifyJwt from '@fastify/jwt'
 import FastifyWebSocket from '@fastify/websocket'
 import { VYNEX_VERSION } from '@vynex/shared'
 import { initializeDatabase, isReplicaMode } from './db/init'
@@ -8,6 +9,8 @@ import { syncNow, startSync, getLastSyncAt } from './db/sync'
 import { registerOrderRoutes } from './routes/orders'
 import { registerTableRoutes } from './routes/tables'
 import { registerMenuRoutes } from './routes/menu'
+import { registerAuthRoutes } from './routes/auth'
+import { registerUserRoutes } from './routes/users'
 import { registerWebSocketHandler } from './ws/handler'
 
 async function main() {
@@ -26,6 +29,10 @@ async function main() {
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   })
+
+  const jwtSecret = process.env['JWT_SECRET'] || 'vynex-local-secret-change-in-production'
+  await server.register(FastifyJwt, { secret: jwtSecret })
+
   await server.register(FastifyWebSocket)
 
   server.get('/health', async () => {
@@ -47,6 +54,8 @@ async function main() {
   })
 
   await registerWebSocketHandler(server)
+  await registerAuthRoutes(server)
+  await registerUserRoutes(server)
   await registerOrderRoutes(server)
   await registerTableRoutes(server)
   await registerMenuRoutes(server)

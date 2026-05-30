@@ -1,6 +1,7 @@
 import { createClient, Client } from '@libsql/client'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import bcrypt from 'bcryptjs'
 
 const { v4: uuid } = require('uuid')
 
@@ -41,6 +42,14 @@ export async function initializeDatabase(dbPath: string = './vynex.db'): Promise
     await seedDefaultVenue()
   }
 
+  // Seed default admin user if no users exist
+  const userResult = await client.execute('SELECT COUNT(*) as count FROM users')
+  const userCount = Number(userResult.rows[0]?.count ?? 0)
+
+  if (userCount === 0) {
+    await seedDefaultAdmin()
+  }
+
   return client
 }
 
@@ -73,6 +82,23 @@ async function runMigrations(): Promise<void> {
   } catch {
     // Columns may already exist; safe to ignore
   }
+
+  // Add opened_by/added_by traceability columns (M4)
+  try {
+    const ordCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('orders')`, args: [] })
+    const ordColNames = new Set(ordCols.rows.map(r => r.name as string))
+    if (!ordColNames.has('opened_by')) {
+      await client!.execute('ALTER TABLE orders ADD COLUMN opened_by TEXT')
+    }
+  } catch { /* already exists */ }
+
+  try {
+    const itmCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('order_items')`, args: [] })
+    const itmColNames = new Set(itmCols.rows.map(r => r.name as string))
+    if (!itmColNames.has('added_by')) {
+      await client!.execute('ALTER TABLE order_items ADD COLUMN added_by TEXT')
+    }
+  } catch { /* already exists */ }
 }
 
 async function seedDefaultVenue(): Promise<void> {
@@ -110,6 +136,17 @@ async function seedDefaultVenue(): Promise<void> {
       args: [uuid(), barCatId, name, 8.99, 'bar', 1, now, now],
     })
   }
+}
+
+async function seedDefaultAdmin(): Promise<void> {
+  const passwordHash = await bcrypt.hash('admin', 10)
+  await client!.execute({
+    sql: `INSERT INTO users (id, name, username, pin_hash, password_hash, role, login_method, enabled, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    args: [uuid(), 'Admin', 'admin', null, passwordHash, 'owner', 'password',
+           new Date().toISOString(), new Date().toISOString()],
+  })
+  console.warn('[SECURITY] Default admin user created — change the password immediately')
 }
 
 export function getClient(): Client {

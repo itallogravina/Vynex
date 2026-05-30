@@ -155,6 +155,33 @@ export type UpdateTableRequest = {
   seats: number
 }
 
+export type CreateUserRequest = {
+  name: string
+  role: Role
+  login_method: LoginMethod
+  username?: string
+  pin?: string
+  password?: string
+}
+
+export type UpdateUserRequest = Partial<CreateUserRequest> & { enabled?: boolean }
+
+export type BulkImportUsersRequest = {
+  users: CreateUserRequest[]
+}
+
+export type BulkImportResult = {
+  created: number
+  failed: { index: number; name: string; error: string }[]
+}
+
+export type AutoGenerateUsersRequest = {
+  role: Role
+  login_method: LoginMethod
+  count: number
+  prefix?: string
+}
+
 export type CreateCategoryRequest = {
   name: string
   routing_zone: RoutingZone

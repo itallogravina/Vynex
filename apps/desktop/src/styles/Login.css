@@ -1,0 +1,217 @@
+.login-root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #0f1117;
+}
+
+.login-card {
+  background: #1a1d27;
+  border: 1px solid #2a2d3a;
+  border-radius: 16px;
+  padding: 40px 36px 36px;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: #e8eaf0;
+  margin: 0 0 4px;
+  letter-spacing: 2px;
+}
+
+.login-tabs {
+  display: flex;
+  gap: 4px;
+  background: #0f1117;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.login-tab {
+  flex: 1;
+  padding: 8px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #8b92a5;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.login-tab.active {
+  background: #2a2d3a;
+  color: #e8eaf0;
+  font-weight: 600;
+}
+
+.login-error {
+  background: #3d1a1a;
+  border: 1px solid #7a2020;
+  color: #f87171;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* PIN */
+.login-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  outline: none;
+}
+
+.pin-dots {
+  display: flex;
+  gap: 12px;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #3a3d4a;
+  background: transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.pin-dot.filled {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+
+.pin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.pin-key {
+  padding: 18px 0;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  background: #0f1117;
+  color: #e8eaf0;
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.pin-key:hover:not(:disabled) {
+  background: #2a2d3a;
+}
+
+.pin-key.invisible {
+  visibility: hidden;
+}
+
+/* Password form */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #8b92a5;
+  font-weight: 500;
+}
+
+.login-input {
+  padding: 10px 12px;
+  border: 1px solid #2a2d3a;
+  border-radius: 8px;
+  background: #0f1117;
+  color: #e8eaf0;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.login-input:focus {
+  border-color: #6366f1;
+}
+
+/* Shared button */
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: #4f52d8;
+}
+
+.login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* User list */
+.login-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.login-list-hint {
+  text-align: center;
+  color: #8b92a5;
+  font-size: 13px;
+}
+
+.login-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid #2a2d3a;
+  border-radius: 10px;
+  background: #0f1117;
+  color: #e8eaf0;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  text-align: left;
+}
+
+.login-list-item:hover:not(:disabled) {
+  background: #2a2d3a;
+  border-color: #6366f1;
+}
+
+.login-list-name {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.login-list-role {
+  font-size: 12px;
+  color: #8b92a5;
+  text-transform: capitalize;
+}

@@ -2,30 +2,41 @@ import { useState } from 'react'
 import { VYNEX_VERSION } from '@vynex/shared'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ServerUrlProvider } from './context/ServerUrlContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { useConnectionStatus } from './hooks/useConnectionStatus'
+import LoginScreen from './screens/LoginScreen'
 import { OrderScreen } from './screens/OrderScreen'
 import KitchenScreen from './screens/KitchenScreen'
 import BarScreen from './screens/BarScreen'
 import CashierScreen from './screens/CashierScreen'
 import TableManagementScreen from './screens/TableManagementScreen'
 import MenuManagementScreen from './screens/MenuManagementScreen'
+import UserManagementScreen from './screens/UserManagementScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import './App.css'
 
-type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'menu' | 'settings'
+type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'menu' | 'users' | 'settings'
 
-const NAV: { id: ScreenType; label: string }[] = [
-  { id: 'order',    label: 'Order' },
-  { id: 'kitchen',  label: 'Kitchen' },
-  { id: 'bar',      label: 'Bar' },
-  { id: 'cashier',  label: 'Cashier' },
-  { id: 'tables',   label: 'Tables' },
-  { id: 'menu',     label: 'Menu' },
-  { id: 'settings', label: 'Settings' },
+const ALL_NAV: { id: ScreenType; label: string; roles: string[] }[] = [
+  { id: 'order',    label: 'Order',    roles: ['owner', 'manager', 'waiter'] },
+  { id: 'kitchen',  label: 'Kitchen',  roles: ['owner', 'manager', 'kitchen'] },
+  { id: 'bar',      label: 'Bar',      roles: ['owner', 'manager', 'bartender'] },
+  { id: 'cashier',  label: 'Cashier',  roles: ['owner', 'manager', 'cashier'] },
+  { id: 'tables',   label: 'Tables',   roles: ['owner', 'manager', 'waiter'] },
+  { id: 'menu',     label: 'Menu',     roles: ['owner', 'manager'] },
+  { id: 'users',    label: 'Users',    roles: ['owner', 'manager'] },
+  { id: 'settings', label: 'Settings', roles: ['owner', 'manager'] },
 ]
 
 function AppShell() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenType>('order')
+  const { user, logout } = useAuth()
+  const role = user?.role ?? ''
+  const visibleNav = ALL_NAV.filter(n => n.roles.includes(role))
+
+  const [currentScreen, setCurrentScreen] = useState<ScreenType>(() => {
+    return visibleNav[0]?.id ?? 'order'
+  })
+
   const { status } = useConnectionStatus()
 
   const renderScreen = () => {
@@ -36,6 +47,7 @@ function AppShell() {
       case 'cashier':  return <CashierScreen />
       case 'tables':   return <TableManagementScreen />
       case 'menu':     return <MenuManagementScreen />
+      case 'users':    return <UserManagementScreen />
       case 'settings': return <SettingsScreen />
     }
   }
@@ -43,7 +55,7 @@ function AppShell() {
   return (
     <div className="app">
       <div className="screen-selector">
-        {NAV.map(({ id, label }) => (
+        {visibleNav.map(({ id, label }) => (
           <button
             key={id}
             className={`screen-btn ${currentScreen === id ? 'active' : ''}`}
@@ -57,6 +69,11 @@ function AppShell() {
           <span className="conn-label">
             {status === 'connected' ? 'Online' : status === 'disconnected' ? 'Offline' : '…'}
           </span>
+          {user && (
+            <button className="logout-btn" onClick={logout} title={`Signed in as ${user.name} (${user.role})`}>
+              {user.name}
+            </button>
+          )}
         </div>
       </div>
       <div className="screen-content">
@@ -67,11 +84,18 @@ function AppShell() {
   )
 }
 
+function AuthGate() {
+  const { user } = useAuth()
+  return user ? <AppShell /> : <LoginScreen />
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <ServerUrlProvider>
-        <AppShell />
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
       </ServerUrlProvider>
     </ErrorBoundary>
   )

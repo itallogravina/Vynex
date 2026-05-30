@@ -28,24 +28,21 @@ import {
   broadcastOrderClosed,
   broadcastAllQueueSnapshots,
 } from '../ws/broadcast'
-import { requireSession } from '../middleware/session'
-
-const session = { preHandler: [requireSession] }
 
 export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/tables', { preHandler: [requireSession] }, async () => {
+  app.get('/tables', async () => {
     return listTables()
   })
 
-  app.get('/menu-items', { preHandler: [requireSession] }, async () => {
+  app.get('/menu-items', async () => {
     return listMenuItems()
   })
 
-  app.get('/orders/open', { preHandler: [requireSession] }, async () => {
+  app.get('/orders/open', async () => {
     return listOpenOrders()
   })
 
-  app.post<{ Body: CreateOrderRequest }>('/orders', session, async (request, reply) => {
+  app.post<{ Body: CreateOrderRequest }>('/orders', async (request, reply) => {
     const { table_id, routing_mode } = request.body
 
     const table = await getTable(table_id)
@@ -53,11 +50,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: 'Table not found' })
     }
 
-    const order = await createOrder(table_id, routing_mode ?? 'auto', request.user.id)
+    const order = await createOrder(table_id, routing_mode ?? 'auto')
     return reply.status(201).send(order)
   })
 
-  app.get<{ Params: { id: string } }>('/orders/:id', session, async (request, reply) => {
+  app.get<{ Params: { id: string } }>('/orders/:id', async (request, reply) => {
     const { id } = request.params
     const order = await getOrder(id)
 
@@ -71,7 +68,6 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
   app.post<{ Params: { id: string }; Body: CloseOrderRequest }>(
     '/orders/:id/close',
-    session,
     async (request, reply) => {
       const { id } = request.params
       const { payment_method } = request.body
@@ -98,7 +94,6 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
   app.post<{ Params: { id: string }; Body: AddOrderItemRequest }>(
     '/orders/:id/items',
-    session,
     async (request, reply) => {
       const { id } = request.params
       const { menu_item_id, quantity, notes } = request.body
@@ -113,7 +108,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(404).send({ error: 'Menu item not found' })
       }
 
-      const item = await addOrderItem(id, menu_item_id, quantity, notes, request.user.id)
+      const item = await addOrderItem(id, menu_item_id, quantity, notes)
 
       if (order.routing_mode === 'auto') {
         const table = await getTable(order.table_id)
@@ -127,7 +122,6 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
   app.patch<{ Params: { id: string; itemId: string }; Body: UpdateItemStatusRequest }>(
     '/orders/:id/items/:itemId',
-    session,
     async (request, reply) => {
       const { id, itemId } = request.params
       const { status } = request.body
@@ -157,7 +151,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     }
   )
 
-  app.get<{ Params: { routingZone: string } }>('/queues/:routingZone', session, async (request, reply) => {
+  app.get<{ Params: { routingZone: string } }>('/queues/:routingZone', async (request, reply) => {
     const { routingZone } = request.params
 
     const validZones = Object.values(RoutingZone)

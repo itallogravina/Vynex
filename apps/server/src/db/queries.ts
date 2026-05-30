@@ -529,16 +529,17 @@ export async function createUser(
   role: Role,
   loginMethod: LoginMethod,
   pinHash?: string,
-  passwordHash?: string
+  passwordHash?: string,
+  username?: string
 ): Promise<User> {
   const client = getClient()
   const id = uuid()
   const now = new Date().toISOString()
 
   await client.execute({
-    sql: `INSERT INTO users (id, name, role, login_method, pin_hash, password_hash, enabled, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-    args: [id, name, role, loginMethod, pinHash ?? null, passwordHash ?? null, now, now],
+    sql: `INSERT INTO users (id, name, username, role, login_method, pin_hash, password_hash, enabled, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    args: [id, name, username ?? null, role, loginMethod, pinHash ?? null, passwordHash ?? null, now, now],
   })
 
   return (await getUser(id))!
@@ -636,11 +637,55 @@ export async function deleteUser(id: string): Promise<void> {
 
 export async function userHasOrders(id: string): Promise<boolean> {
   const client = getClient()
+  const [r1, r2] = await Promise.all([
+    client.execute({ sql: 'SELECT COUNT(*) as count FROM orders WHERE opened_by = ?', args: [id] }),
+    client.execute({ sql: 'SELECT COUNT(*) as count FROM order_items WHERE added_by = ?', args: [id] }),
+  ])
+  return Number(r1.rows[0]?.count ?? 0) > 0 || Number(r2.rows[0]?.count ?? 0) > 0
+}
+
+// Alias for external callers that expect getUserById
+export const getUserById = getUser
+
+export async function getUserByUsername(username: string): Promise<(User & { pin_hash: string | null; password_hash: string | null }) | null> {
+  const client = getClient()
   const result = await client.execute({
-    sql: 'SELECT COUNT(*) as count FROM orders WHERE opened_by = ?',
-    args: [id],
+    sql: `SELECT id, name, role, login_method, enabled, pin_hash, password_hash
+          FROM users WHERE username = ? AND enabled = 1`,
+    args: [username],
   })
-  return Number(result.rows[0]?.count ?? 0) > 0
+  const row = result.rows[0]
+  if (!row) return null
+  return {
+    ...mapUser(row),
+    pin_hash: (row.pin_hash as string | null) ?? null,
+    password_hash: (row.password_hash as string | null) ?? null,
+  }
+}
+
+export async function listUsersForLogin(): Promise<User[]> {
+  const client = getClient()
+  const result = await client.execute(
+    "SELECT id, name, role, login_method, enabled FROM users WHERE enabled = 1 AND login_method = 'list' ORDER BY name"
+  )
+  return result.rows.map(mapUser)
+}
+
+export async function countUsers(): Promise<number> {
+  const client = getClient()
+  const result = await client.execute('SELECT COUNT(*) as count FROM users')
+  return Number(result.rows[0]?.count ?? 0)
+}
+
+export async function softOrHardDeleteUser(id: string): Promise<{ ok: boolean; error?: string }> {
+  const hasActivity = await userHasOrders(id)
+  if (hasActivity) {
+    await disableUser(id)
+  } else {
+    const client = getClient()
+    await client.execute({ sql: 'DELETE FROM users WHERE id = ?', args: [id] })
+  }
+  return { ok: true }
 }
 
 // ============================================================================
