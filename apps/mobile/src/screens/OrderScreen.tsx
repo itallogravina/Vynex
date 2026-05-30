@@ -8,9 +8,9 @@ import {
   Order,
   OrderItem,
 } from '@vynex/shared'
+import { useAuth } from '../context/AuthContext'
 
 const API_URL = 'http://localhost:3000'
-const WS_URL = 'ws://localhost:3000/ws'
 
 type OrderItemWithMenu = OrderItem & {
   menu_item: MenuItem
@@ -18,6 +18,7 @@ type OrderItemWithMenu = OrderItem & {
 }
 
 export default function OrderScreen() {
+  const { token } = useAuth()
   const [tables, setTables] = useState<Table[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [selectedTable, setSelectedTable] = useState<string>('')
@@ -34,10 +35,22 @@ export default function OrderScreen() {
   const queueItemsRef = useRef<Map<string, any>>(new Map())
   const wsRef = useRef<WebSocket | null>(null)
 
+  function authHeaders(): Record<string, string> {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) h['X-Session-Token'] = token
+    return h
+  }
+
+  function buildWsUrl(): string {
+    const url = new URL('ws://localhost:3000/ws')
+    if (token) url.searchParams.set('token', token)
+    return url.toString()
+  }
+
   useEffect(() => {
     const fetchTables = async () => {
       try {
-        const res = await fetch(`${API_URL}/tables`)
+        const res = await fetch(`${API_URL}/tables`, { headers: authHeaders() })
         if (!res.ok) throw new Error('Failed to load tables')
         const data = await res.json()
         setTables(data)
@@ -48,7 +61,7 @@ export default function OrderScreen() {
 
     const fetchMenuItems = async () => {
       try {
-        const res = await fetch(`${API_URL}/menu-items`)
+        const res = await fetch(`${API_URL}/menu-items`, { headers: authHeaders() })
         if (!res.ok) throw new Error('Failed to load menu items')
         const data = await res.json()
         setMenuItems(data)
@@ -64,7 +77,7 @@ export default function OrderScreen() {
   useEffect(() => {
     if (!order) return
 
-    const ws = new WebSocket(WS_URL)
+    const ws = new WebSocket(buildWsUrl())
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -120,7 +133,7 @@ export default function OrderScreen() {
     try {
       const res = await fetch(`${API_URL}/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ table_id: selectedTable, routing_mode: routingMode }),
       })
 
@@ -145,7 +158,7 @@ export default function OrderScreen() {
     try {
       const res = await fetch(`${API_URL}/orders/${order.id}/items`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({
           menu_item_id: menuItem.id,
           quantity: parseInt(quantity),

@@ -79,6 +79,28 @@ CREATE TABLE IF NOT EXISTS order_items (
   FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
 );
 
+-- Staff users
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK(role IN ('owner','manager','cashier','waiter','bartender','kitchen')),
+  login_method TEXT NOT NULL CHECK(login_method IN ('pin','password','list')),
+  pin_hash TEXT,
+  password_hash TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Auth sessions
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_tables_venue_id ON tables(venue_id);
 CREATE INDEX IF NOT EXISTS idx_categories_venue_id ON categories(venue_id);
@@ -88,3 +110,4 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_status ON order_items(status);
 CREATE INDEX IF NOT EXISTS idx_order_items_menu_item_id ON order_items(menu_item_id);
 CREATE INDEX IF NOT EXISTS idx_menu_changes_log_row ON menu_changes_log(table_name, row_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { RoutingZone, QueueItem, ItemStatusChangedEvent, QueueSnapshotEvent } from '@vynex/shared'
-import { useServerUrl } from '../context/ServerUrlContext'
+import { useApi } from '../lib/api'
 
 type QueueEvent = ItemStatusChangedEvent | QueueSnapshotEvent
 
@@ -11,17 +11,14 @@ interface UseQueueResult {
 }
 
 export function useQueue(zone: RoutingZone): UseQueueResult {
-  const { wsUrl } = useServerUrl()
+  const api = useApi()
   const [items, setItems] = useState<QueueItem[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string>()
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    const url = new URL(wsUrl)
-    url.searchParams.set('zones', zone)
-
-    const ws = new WebSocket(url.toString())
+    const ws = new WebSocket(api.buildWsUrl(zone))
 
     ws.onopen = () => {
       setIsConnected(true)
@@ -60,7 +57,8 @@ export function useQueue(zone: RoutingZone): UseQueueResult {
     return () => {
       ws.close()
     }
-  }, [zone, wsUrl])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zone, api.serverUrl, api.token])
 
   return { items, isConnected, error }
 }

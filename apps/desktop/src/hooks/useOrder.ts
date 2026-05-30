@@ -7,7 +7,7 @@ import {
   RoutingZone,
   AddOrderItemRequest,
 } from '@vynex/shared'
-import { useServerUrl } from '../context/ServerUrlContext'
+import { useApi } from '../lib/api'
 
 export type OrderItemWithStatus = OrderItem & {
   menu_item: MenuItem
@@ -15,7 +15,7 @@ export type OrderItemWithStatus = OrderItem & {
 }
 
 export function useOrder() {
-  const { serverUrl, wsUrl } = useServerUrl()
+  const api = useApi()
   const [order, setOrder] = useState<Order | null>(null)
   const [items, setItems] = useState<OrderItemWithStatus[]>([])
   const [loading, setLoading] = useState(false)
@@ -28,17 +28,7 @@ export function useOrder() {
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch(`${serverUrl}/orders`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ table_id, routing_mode }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to create order')
-        }
-
-        const newOrder = (await response.json()) as Order
+        const { data: newOrder } = await api.post<Order>('/orders', { table_id, routing_mode })
         setOrder(newOrder)
         setItems([])
         return newOrder
@@ -50,7 +40,8 @@ export function useOrder() {
         setLoading(false)
       }
     },
-    [serverUrl]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [api.serverUrl, api.token]
   )
 
   const addItem = useCallback(
@@ -61,24 +52,9 @@ export function useOrder() {
 
       try {
         const body: AddOrderItemRequest = { menu_item_id: menu_item.id, quantity, notes }
-        const response = await fetch(`${serverUrl}/orders/${order.id}/items`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to add item')
-        }
-
-        const newItem = (await response.json()) as OrderItem
-        const itemWithStatus: OrderItemWithStatus = {
-          ...newItem,
-          menu_item,
-        }
-
+        const { data: newItem } = await api.post<OrderItem>(`/orders/${order.id}/items`, body)
+        const itemWithStatus: OrderItemWithStatus = { ...newItem, menu_item }
         setItems(prev => [...prev, itemWithStatus])
-
         return itemWithStatus
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -88,24 +64,31 @@ export function useOrder() {
         setLoading(false)
       }
     },
-    [order, serverUrl]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [order, api.serverUrl, api.token]
   )
 
   const confirmOrder = useCallback(async () => {
-    // For auto mode, items are added all at once when order is created
-    // This is a placeholder for future confirmation logic
     return order
   }, [order])
+
+  const updateItemStatuses = useCallback(() => {
+    setItems(prev =>
+      prev.map(item => {
+        const queueItem = queueItemsRef.current.get(item.id)
+        return { ...item, live_status: queueItem?.status || item.status }
+      })
+    )
+  }, [])
 
   const subscribeToQueues = useCallback((_newOrder: Order) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.close()
     }
 
-    const ws = new WebSocket(wsUrl)
+    const ws = new WebSocket(api.buildWsUrl())
 
     ws.onopen = () => {
-      // Subscribe to all routing zones to track items
       Object.values(RoutingZone).forEach(zone => {
         if (zone !== RoutingZone.TABLE) {
           ws.send(JSON.stringify({ action: 'subscribe', routing_zone: zone }))
@@ -117,18 +100,11 @@ export function useOrder() {
       try {
         const msg = JSON.parse(event.data)
         if (msg.type === 'queue:snapshot') {
-          // Store all items from queue snapshot
-          msg.items.forEach((item: any) => {
-            queueItemsRef.current.set(item.id, item)
-          })
+          msg.items.forEach((item: any) => { queueItemsRef.current.set(item.id, item) })
           updateItemStatuses()
         } else if (msg.type === 'item:status_changed') {
-          // Update status for specific item
           const existing = queueItemsRef.current.get(msg.item_id)
-          if (existing) {
-            existing.status = msg.new_status
-            updateItemStatuses()
-          }
+          if (existing) { existing.status = msg.new_status; updateItemStatuses() }
         }
       } catch (err) {
         console.error('WebSocket message error:', err)
@@ -141,39 +117,15 @@ export function useOrder() {
     }
 
     wsRef.current = ws
-  }, [wsUrl])
-
-  const updateItemStatuses = useCallback(() => {
-    setItems(prev =>
-      prev.map(item => {
-        const queueItem = queueItemsRef.current.get(item.id)
-        return {
-          ...item,
-          live_status: queueItem?.status || item.status,
-        }
-      })
-    )
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api.serverUrl, api.token, updateItemStatuses])
 
   useEffect(() => {
-    if (order) {
-      subscribeToQueues(order)
-    }
-
+    if (order) subscribeToQueues(order)
     return () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.close()
-      }
+      if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.close()
     }
   }, [order, subscribeToQueues])
 
-  return {
-    order,
-    items,
-    loading,
-    error,
-    createOrder,
-    addItem,
-    confirmOrder,
-  }
+  return { order, items, loading, error, createOrder, addItem, confirmOrder }
 }

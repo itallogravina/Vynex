@@ -1,6 +1,7 @@
 import { createClient, Client } from '@libsql/client'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import bcrypt from 'bcryptjs'
 
 const { v4: uuid } = require('uuid')
 
@@ -41,6 +42,9 @@ export async function initializeDatabase(dbPath: string = './vynex.db'): Promise
     await seedDefaultVenue()
   }
 
+  // Always ensure a default admin user exists (safe to call on every startup)
+  await ensureDefaultAdmin()
+
   return client
 }
 
@@ -72,6 +76,33 @@ async function runMigrations(): Promise<void> {
     }
   } catch {
     // Columns may already exist; safe to ignore
+  }
+
+  // Add M4 traceability columns (opened_by, added_by)
+  try {
+    const ordersInfo = await client!.execute({
+      sql: `SELECT name FROM pragma_table_info('orders') WHERE name = 'opened_by'`,
+      args: [],
+    })
+    if (ordersInfo.rows.length === 0) {
+      await client!.execute('ALTER TABLE orders ADD COLUMN opened_by TEXT REFERENCES users(id)')
+      console.log('[db] migration: added opened_by to orders')
+    }
+  } catch {
+    // safe to ignore
+  }
+
+  try {
+    const itemsInfo = await client!.execute({
+      sql: `SELECT name FROM pragma_table_info('order_items') WHERE name = 'added_by'`,
+      args: [],
+    })
+    if (itemsInfo.rows.length === 0) {
+      await client!.execute('ALTER TABLE order_items ADD COLUMN added_by TEXT REFERENCES users(id)')
+      console.log('[db] migration: added added_by to order_items')
+    }
+  } catch {
+    // safe to ignore
   }
 }
 
@@ -110,6 +141,24 @@ async function seedDefaultVenue(): Promise<void> {
       args: [uuid(), barCatId, name, 8.99, 'bar', 1, now, now],
     })
   }
+}
+
+async function ensureDefaultAdmin(): Promise<void> {
+  const result = await client!.execute(
+    `SELECT COUNT(*) as count FROM users WHERE name = 'admin'`
+  )
+  const exists = Number(result.rows[0]?.count ?? 0) > 0
+  if (exists) return
+
+  const passwordHash = await bcrypt.hash('admin', 10)
+  const id = uuid()
+  const now = new Date().toISOString()
+  await client!.execute({
+    sql: `INSERT INTO users (id, name, role, login_method, pin_hash, password_hash, enabled, created_at, updated_at)
+          VALUES (?, 'admin', 'owner', 'password', NULL, ?, 1, ?, ?)`,
+    args: [id, passwordHash, now, now],
+  })
+  console.log('[db] default admin user created (username: admin, password: admin)')
 }
 
 export function getClient(): Client {
