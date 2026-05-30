@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { VYNEX_VERSION } from '@vynex/shared'
+import { useTranslation } from '@vynex/i18n'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ServerUrlProvider } from './context/ServerUrlContext'
+import { I18nProvider } from './context/I18nContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { useConnectionStatus } from './hooks/useConnectionStatus'
 import { LoginScreen } from './screens/LoginScreen'
@@ -20,24 +22,25 @@ type ScreenType =
   | 'order' | 'kitchen' | 'bar' | 'cashier'
   | 'tables' | 'menu' | 'users' | 'reports' | 'settings'
 
-const ALL_NAV: { id: ScreenType; label: string; roles: string[] }[] = [
-  { id: 'order',    label: 'Order',    roles: ['owner','manager','cashier','waiter','bartender','kitchen'] },
-  { id: 'kitchen',  label: 'Kitchen',  roles: ['owner','manager','kitchen'] },
-  { id: 'bar',      label: 'Bar',      roles: ['owner','manager','bartender'] },
-  { id: 'cashier',  label: 'Cashier',  roles: ['owner','manager','cashier'] },
-  { id: 'tables',   label: 'Tables',   roles: ['owner','manager','waiter'] },
-  { id: 'menu',     label: 'Menu',     roles: ['owner','manager'] },
-  { id: 'users',    label: 'Users',    roles: ['owner','manager'] },
-  { id: 'reports',  label: 'Reports',  roles: ['owner','manager','cashier'] },
-  { id: 'settings', label: 'Settings', roles: ['owner','manager'] },
+const NAV_ITEMS: { id: ScreenType; key: string; roles: string[] }[] = [
+  { id: 'order',    key: 'nav.order',    roles: ['owner','manager','cashier','waiter','bartender','kitchen'] },
+  { id: 'kitchen',  key: 'nav.kitchen',  roles: ['owner','manager','kitchen'] },
+  { id: 'bar',      key: 'nav.bar',      roles: ['owner','manager','bartender'] },
+  { id: 'cashier',  key: 'nav.cashier',  roles: ['owner','manager','cashier'] },
+  { id: 'tables',   key: 'nav.tables',   roles: ['owner','manager','waiter'] },
+  { id: 'menu',     key: 'nav.menu',     roles: ['owner','manager'] },
+  { id: 'users',    key: 'nav.users',    roles: ['owner','manager'] },
+  { id: 'reports',  key: 'nav.reports',  roles: ['owner','manager','cashier'] },
+  { id: 'settings', key: 'nav.settings', roles: ['owner','manager'] },
 ]
 
 function AppShell() {
+  const { t } = useTranslation()
   const { user, logout } = useAuth()
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('order')
   const { status } = useConnectionStatus()
 
-  const nav = ALL_NAV.filter(n => user && n.roles.includes(user.role))
+  const nav = NAV_ITEMS.filter(n => user && n.roles.includes(user.role))
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -53,27 +56,30 @@ function AppShell() {
     }
   }
 
+  const connLabel =
+    status === 'connected'    ? t('settings.connectionStatus.connected') :
+    status === 'disconnected' ? t('settings.connectionStatus.disconnected') :
+    '…'
+
   return (
     <div className="app">
       <div className="screen-selector">
-        {nav.map(({ id, label }) => (
+        {nav.map(({ id, key }) => (
           <button
             key={id}
             className={`screen-btn ${currentScreen === id ? 'active' : ''}`}
             onClick={() => setCurrentScreen(id)}
           >
-            {label}
+            {t(key as Parameters<typeof t>[0])}
           </button>
         ))}
         <div className="sidebar-footer">
           <span className={`conn-dot conn-dot--${status}`} title={status} />
-          <span className="conn-label">
-            {status === 'connected' ? 'Online' : status === 'disconnected' ? 'Offline' : '…'}
-          </span>
+          <span className="conn-label">{connLabel}</span>
           {user && (
             <div className="sidebar-user">
               <span className="sidebar-username">{user.name}</span>
-              <button className="logout-btn" onClick={logout}>Logout</button>
+              <button className="logout-btn" onClick={logout}>{t('auth.logout')}</button>
             </div>
           )}
         </div>
@@ -95,9 +101,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ServerUrlProvider>
-        <AuthProvider>
-          <AppGate />
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <AppGate />
+          </AuthProvider>
+        </I18nProvider>
       </ServerUrlProvider>
     </ErrorBoundary>
   )

@@ -4,6 +4,7 @@ import {
   addOrderItem,
   updateOrderItemStatus,
   getOrder,
+  getOpenOrderForTable,
   getOrderItems,
   getQueueByZone,
   getMenuItem,
@@ -29,6 +30,7 @@ import {
   broadcastAllQueueSnapshots,
 } from '../ws/broadcast'
 import { requireSession } from '../middleware/session'
+import { apiError } from '../lib/errors'
 
 const session = { preHandler: [requireSession] }
 
@@ -41,7 +43,9 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     return listMenuItems()
   })
 
-  app.get('/orders/open', { preHandler: [requireSession] }, async () => {
+  app.get<{ Querystring: { table_id?: string } }>('/orders/open', { preHandler: [requireSession] }, async (request) => {
+    const { table_id } = request.query
+    if (table_id) return getOpenOrderForTable(table_id)
     return listOpenOrders()
   })
 
@@ -50,7 +54,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     const table = await getTable(table_id)
     if (!table) {
-      return reply.status(404).send({ error: 'Table not found' })
+      return apiError(reply, 404, 'TABLE_NOT_FOUND', 'Table not found')
+    }
+
+    const existingOpen = await getOpenOrderForTable(table_id)
+    if (existingOpen) {
+      return apiError(reply, 409, 'TABLE_HAS_OPEN_ORDER', 'Table already has an open order')
     }
 
     const order = await createOrder(table_id, routing_mode ?? 'auto', request.user.id)
@@ -62,7 +71,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const order = await getOrder(id)
 
     if (!order) {
-      return reply.status(404).send({ error: 'Order not found' })
+      return apiError(reply, 404, 'ORDER_NOT_FOUND', 'Order not found')
     }
 
     const items = await getOrderItems(id)
@@ -78,13 +87,13 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
       const order = await getOrder(id)
       if (!order) {
-        return reply.status(404).send({ error: 'Order not found' })
+        return apiError(reply, 404, 'ORDER_NOT_FOUND', 'Order not found')
       }
       if (order.status === 'closed') {
-        return reply.status(400).send({ error: 'Order is already closed' })
+        return apiError(reply, 409, 'ORDER_ALREADY_CLOSED', 'Order is already closed')
       }
       if (!payment_method || !['cash', 'card'].includes(payment_method)) {
-        return reply.status(400).send({ error: 'payment_method must be cash or card' })
+        return apiError(reply, 400, 'GENERAL_VALIDATION', 'payment_method must be cash or card')
       }
 
       const closed = await closeOrder(id, payment_method)
@@ -105,12 +114,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
       const order = await getOrder(id)
       if (!order) {
-        return reply.status(404).send({ error: 'Order not found' })
+        return apiError(reply, 404, 'ORDER_NOT_FOUND', 'Order not found')
       }
 
       const menuItem = await getMenuItem(menu_item_id)
       if (!menuItem) {
-        return reply.status(404).send({ error: 'Menu item not found' })
+        return apiError(reply, 404, 'MENU_ITEM_NOT_FOUND', 'Menu item not found')
       }
 
       const item = await addOrderItem(id, menu_item_id, quantity, notes, request.user.id)
@@ -134,12 +143,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
       const order = await getOrder(id)
       if (!order) {
-        return reply.status(404).send({ error: 'Order not found' })
+        return apiError(reply, 404, 'ORDER_NOT_FOUND', 'Order not found')
       }
 
       const validStatuses = Object.values(ItemStatus)
       if (!validStatuses.includes(status)) {
-        return reply.status(400).send({ error: 'Invalid status' })
+        return apiError(reply, 400, 'GENERAL_VALIDATION', 'Invalid status')
       }
 
       const items = await getOrderItems(id)
@@ -162,7 +171,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     const validZones = Object.values(RoutingZone)
     if (!validZones.includes(routingZone as RoutingZone)) {
-      return reply.status(400).send({ error: 'Invalid routing zone' })
+      return apiError(reply, 400, 'GENERAL_VALIDATION', 'Invalid routing zone')
     }
 
     const queue = await getQueueByZone(routingZone as RoutingZone)

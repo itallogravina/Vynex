@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
+import { i18n } from '@vynex/i18n'
 
 interface Props {
   children: ReactNode
@@ -35,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
               gap: '12px',
             }}
           >
-            <h2 style={{ color: '#b91c1c', margin: 0 }}>Something went wrong</h2>
+            <h2 style={{ color: '#b91c1c', margin: 0 }}>{i18n.t('errors.boundary')}</h2>
             <p style={{ color: '#6b7280', margin: 0 }}>{this.state.error.message}</p>
             <button
               onClick={() => this.setState({ error: null })}
@@ -48,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 cursor: 'pointer',
               }}
             >
-              Try again
+              {i18n.t('errors.boundaryRetry')}
             </button>
           </div>
         )

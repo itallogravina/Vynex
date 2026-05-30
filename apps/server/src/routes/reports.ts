@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { requireSession } from '../middleware/session'
 import { requireRole } from '../middleware/roles'
+import { apiError } from '../lib/errors'
 import {
   getSalesReport,
   getTopItemsReport,
@@ -16,7 +17,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: reportGuard },
     async (request, reply) => {
       const { from, to, group_by = 'day' } = request.query
-      if (!from || !to) return reply.status(400).send({ error: 'from and to are required' })
+      if (!from || !to) return apiError(reply, 400, 'GENERAL_VALIDATION', 'from and to are required')
       const groupBy = (['day', 'week', 'month'] as const).includes(group_by as 'day' | 'week' | 'month')
         ? (group_by as 'day' | 'week' | 'month')
         : 'day'
@@ -29,7 +30,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: reportGuard },
     async (request, reply) => {
       const { from, to, limit = '10' } = request.query
-      if (!from || !to) return reply.status(400).send({ error: 'from and to are required' })
+      if (!from || !to) return apiError(reply, 400, 'GENERAL_VALIDATION', 'from and to are required')
       return getTopItemsReport(from, to, Number(limit))
     }
   )
@@ -39,7 +40,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: reportGuard },
     async (request, reply) => {
       const { from, to } = request.query
-      if (!from || !to) return reply.status(400).send({ error: 'from and to are required' })
+      if (!from || !to) return apiError(reply, 400, 'GENERAL_VALIDATION', 'from and to are required')
       return getPerWaiterReport(from, to)
     }
   )
@@ -49,7 +50,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: reportGuard },
     async (request, reply) => {
       const { from, to } = request.query
-      if (!from || !to) return reply.status(400).send({ error: 'from and to are required' })
+      if (!from || !to) return apiError(reply, 400, 'GENERAL_VALIDATION', 'from and to are required')
       return getShiftSummaryReport(from, to)
     }
   )
@@ -59,7 +60,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: reportGuard },
     async (request, reply) => {
       const { type, from, to } = request.query
-      if (!type || !from || !to) return reply.status(400).send({ error: 'type, from and to are required' })
+      if (!type || !from || !to) return apiError(reply, 400, 'GENERAL_VALIDATION', 'type, from and to are required')
 
       let csv = ''
       const filename = `vynex-report-${type}-${from}-${to}.csv`
@@ -88,7 +89,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
         csv += `cash,${data.by_payment_method.cash}\n`
         csv += `card,${data.by_payment_method.card}`
       } else {
-        return reply.status(400).send({ error: 'Invalid report type' })
+        return apiError(reply, 400, 'GENERAL_VALIDATION', 'Invalid report type')
       }
 
       reply.header('Content-Type', 'text/csv')

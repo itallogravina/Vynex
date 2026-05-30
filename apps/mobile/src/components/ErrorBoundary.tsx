@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { i18n } from '@vynex/i18n'
 
 interface Props {
   children: ReactNode
@@ -24,13 +25,13 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>Something went wrong</Text>
+          <Text style={styles.title}>{i18n.t('errors.boundary')}</Text>
           <Text style={styles.message}>{this.state.error.message}</Text>
           <TouchableOpacity
             style={styles.button}
             onPress={() => this.setState({ error: null })}
           >
-            <Text style={styles.buttonText}>Try again</Text>
+            <Text style={styles.buttonText}>{i18n.t('errors.boundaryRetry')}</Text>
           </TouchableOpacity>
         </View>
       )

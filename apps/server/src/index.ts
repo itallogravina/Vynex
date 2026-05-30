@@ -11,9 +11,11 @@ import { registerMenuRoutes } from './routes/menu'
 import { registerAuthRoutes } from './routes/auth'
 import { registerUserRoutes } from './routes/users'
 import { registerReportRoutes } from './routes/reports'
+import { registerSettingsRoutes } from './routes/settings'
 import { registerWebSocketHandler } from './ws/handler'
 import { requireSession } from './middleware/session'
 import { requireRole } from './middleware/roles'
+import { apiError } from './lib/errors'
 
 async function main() {
   const dbPath = process.env['DB_PATH'] || process.env['DATABASE_PATH'] || './vynex.db'
@@ -44,7 +46,7 @@ async function main() {
 
   server.post('/admin/sync', { preHandler: [requireSession, requireRole('owner')] }, async (_request, reply) => {
     if (!isReplicaMode()) {
-      return reply.status(400).send({ error: 'Not in replica mode — no Turso credentials configured' })
+      return apiError(reply, 400, 'GENERAL_VALIDATION', 'Not in replica mode — no Turso credentials configured')
     }
     await syncNow()
     return { ok: true }
@@ -57,6 +59,7 @@ async function main() {
   await registerOrderRoutes(server)
   await registerTableRoutes(server)
   await registerMenuRoutes(server)
+  await registerSettingsRoutes(server)
 
   const port = Number(process.env['PORT'] ?? 3000)
 

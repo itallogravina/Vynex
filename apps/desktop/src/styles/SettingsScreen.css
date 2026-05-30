@@ -146,3 +146,75 @@
   font-size: 0.75rem;
   color: #888;
 }
+
+/* Language selector */
+.settings-locale-options {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+}
+
+.settings-locale-btn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: white;
+  color: #555;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.settings-locale-btn:hover:not(:disabled) {
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.settings-locale-btn.active {
+  background: #3498db;
+  border-color: #3498db;
+  color: white;
+  font-weight: 600;
+}
+
+.settings-locale-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.settings-lang-error {
+  font-size: 0.8125rem;
+  color: #e74c3c;
+  margin: 0 0 0.75rem;
+}
+
+.settings-lang-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #166534;
+}
+
+.settings-reload-btn {
+  padding: 0.35rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.settings-reload-btn:hover {
+  background: #15803d;
+}

@@ -9,12 +9,14 @@ import {
   SafeAreaView,
 } from 'react-native'
 import { AuthResponse } from '@vynex/shared'
+import { useTranslation } from '@vynex/i18n'
 import { useAuth } from '../context/AuthContext'
 
 const API_URL = 'http://localhost:3000'
 type Tab = 'pin' | 'list'
 
 export default function LoginScreen(): React.JSX.Element {
+  const { t } = useTranslation()
   const { login } = useAuth()
   const [tab, setTab] = useState<Tab>('pin')
   const [pin, setPin] = useState('')
@@ -44,15 +46,15 @@ export default function LoginScreen(): React.JSX.Element {
       })
       const data = await res.json()
       if (!res.ok) {
-        if (res.status === 409) setError('Multiple users match this PIN.')
-        else if (res.status === 401) setError('Invalid credentials.')
-        else setError(data?.error ?? 'Login failed.')
+        if (res.status === 409) setError(t('auth.errors.AUTH_PIN_CONFLICT'))
+        else if (res.status === 401) setError(t('auth.errors.AUTH_INVALID_CREDENTIALS'))
+        else setError(data?.error ?? t('auth.loginFailed'))
         return
       }
       const auth = data as AuthResponse
       login(auth.token, auth.user)
     } catch {
-      setError('Server unreachable.')
+      setError(t('auth.serverUnreachable'))
     } finally {
       setLoading(false)
     }
@@ -71,16 +73,15 @@ export default function LoginScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Vynex</Text>
 
-      {/* Tab selector */}
       <View style={styles.tabs}>
-        {(['pin', 'list'] as Tab[]).map(t => (
+        {(['pin', 'list'] as Tab[]).map(t_ => (
           <TouchableOpacity
-            key={t}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            onPress={() => { setTab(t); setError(null); setPin('') }}
+            key={t_}
+            style={[styles.tab, tab === t_ && styles.tabActive]}
+            onPress={() => { setTab(t_); setError(null); setPin('') }}
           >
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === 'pin' ? 'PIN' : 'List'}
+            <Text style={[styles.tabText, tab === t_ && styles.tabTextActive]}>
+              {t_ === 'pin' ? t('auth.pin') : t('auth.selectUser')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -88,7 +89,6 @@ export default function LoginScreen(): React.JSX.Element {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
-      {/* PIN panel */}
       {tab === 'pin' && (
         <View style={styles.pinPanel}>
           <View style={styles.pinDisplay}>
@@ -114,13 +114,12 @@ export default function LoginScreen(): React.JSX.Element {
         </View>
       )}
 
-      {/* List panel */}
       {tab === 'list' && (
         <View style={styles.listPanel}>
           {listLoading ? (
             <ActivityIndicator />
           ) : listUsers.length === 0 ? (
-            <Text style={styles.emptyText}>No users available.</Text>
+            <Text style={styles.emptyText}>{t('auth.noUsers')}</Text>
           ) : (
             <FlatList
               data={listUsers}

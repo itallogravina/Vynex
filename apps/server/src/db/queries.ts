@@ -70,6 +70,16 @@ export async function createOrder(
   return (await getOrder(id))!
 }
 
+export async function getOpenOrderForTable(tableId: string): Promise<Order | null> {
+  const client = getClient()
+  const result = await client.execute({
+    sql: "SELECT * FROM orders WHERE table_id = ? AND status = 'open' ORDER BY created_at DESC LIMIT 1",
+    args: [tableId],
+  })
+  const row = result.rows[0]
+  return row ? mapOrder(row) : null
+}
+
 export async function getOrder(orderId: string): Promise<Order | null> {
   const client = getClient()
   const result = await client.execute({ sql: 'SELECT * FROM orders WHERE id = ?', args: [orderId] })
@@ -177,7 +187,7 @@ export async function updateOrderItemStatus(itemId: string, status: ItemStatus):
 export async function getOrderItems(orderId: string): Promise<(OrderItem & { menu_item: MenuItem })[]> {
   const client = getClient()
   const result = await client.execute({
-    sql: `SELECT oi.*, mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled, mi.created_at as mi_created_at, mi.updated_at as mi_updated_at
+    sql: `SELECT oi.*, mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled, mi.eightysixed_at as mi_eightysixed_at, mi.created_at as mi_created_at, mi.updated_at as mi_updated_at
           FROM order_items oi
           JOIN menu_items mi ON oi.menu_item_id = mi.id
           WHERE oi.order_id = ?
@@ -217,6 +227,7 @@ export async function getQueueByZone(routingZone: RoutingZone): Promise<QueueIte
             oi.id, oi.order_id, oi.menu_item_id, oi.quantity, oi.status, oi.notes,
             oi.created_at as oi_created_at, oi.updated_at as oi_updated_at,
             mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled,
+            mi.eightysixed_at as mi_eightysixed_at,
             mi.created_at as mi_created_at, mi.updated_at as mi_updated_at,
             o.id as o_id, o.table_id, o.routing_mode, o.status as o_status,
             o.payment_method, o.closed_at,
@@ -338,6 +349,23 @@ export async function deleteMenuItem(itemId: string): Promise<void> {
   await client.execute({ sql: 'DELETE FROM menu_items WHERE id = ?', args: [itemId] })
 }
 
+export async function eightysixMenuItem(itemId: string, active: boolean): Promise<MenuItem> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  const value = active ? todayLocal() : null
+  await client.execute({
+    sql: 'UPDATE menu_items SET eightysixed_at = ?, updated_at = ? WHERE id = ?',
+    args: [value, now, itemId],
+  })
+  await logMenuChange('menu_items', itemId, 'update', { eightysixed: active })
+  return (await getMenuItem(itemId))!
+}
+
+function todayLocal(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function mapMenuItem(row: Record<string, unknown>): MenuItem {
   return {
     id: row.id as string,
@@ -346,6 +374,7 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
     price: row.price as number,
     routing_zone: row.routing_zone as RoutingZone,
     enabled: row.enabled === 1 || row.enabled === true,
+    eightysixed: (row.eightysixed_at as string | null) === todayLocal(),
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -359,6 +388,7 @@ function mapMenuItemFromRow(row: Record<string, unknown>): MenuItem {
     price: row.price as number,
     routing_zone: row.routing_zone as RoutingZone,
     enabled: row.enabled === 1 || row.enabled === true,
+    eightysixed: (row.mi_eightysixed_at as string | null) === todayLocal(),
     created_at: row.mi_created_at as string,
     updated_at: (row.mi_updated_at as string) || '',
   }
@@ -439,10 +469,11 @@ export async function listTablesWithStatus(): Promise<TableWithStatus[]> {
   const client = getClient()
   const result = await client.execute(
     `SELECT t.id, t.name, t.seats, t.created_at,
-            CASE WHEN o.id IS NOT NULL THEN 'occupied' ELSE 'free' END as status,
-            o.id as order_id
+            CASE WHEN COUNT(o.id) > 0 THEN 'occupied' ELSE 'free' END as status,
+            MAX(o.id) as order_id
      FROM tables t
      LEFT JOIN orders o ON o.table_id = t.id AND o.status = 'open'
+     GROUP BY t.id, t.name, t.seats, t.created_at
      ORDER BY t.name`
   )
 
@@ -853,4 +884,25 @@ export async function getShiftSummaryReport(from: string, to: string): Promise<S
       card: Math.round(Number(rev.card ?? 0) * 100) / 100,
     },
   }
+}
+
+// ============================================================================
+// VENUE SETTINGS QUERIES
+// ============================================================================
+
+export async function getVenueSetting(key: string): Promise<string | null> {
+  const client = getClient()
+  const result = await client.execute({
+    sql: 'SELECT value FROM venue_settings WHERE key = ?',
+    args: [key],
+  })
+  return (result.rows[0]?.['value'] as string) ?? null
+}
+
+export async function setVenueSetting(key: string, value: string): Promise<void> {
+  const client = getClient()
+  await client.execute({
+    sql: `INSERT OR REPLACE INTO venue_settings (key, value, updated_at) VALUES (?, ?, ?)`,
+    args: [key, value, new Date().toISOString()],
+  })
 }

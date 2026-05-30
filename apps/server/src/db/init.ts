@@ -34,6 +34,11 @@ export async function initializeDatabase(dbPath: string = './vynex.db'): Promise
   // Migrations for existing databases
   await runMigrations()
 
+  // One-time cleanup: delete open orders with no items (artifacts from pre-fix missing duplicate-order guard)
+  await client!.execute(
+    "DELETE FROM orders WHERE status = 'open' AND id NOT IN (SELECT DISTINCT order_id FROM order_items)"
+  )
+
   // Seed default venue if empty
   const venueResult = await client.execute('SELECT COUNT(*) as count FROM venues')
   const venueCount = Number(venueResult.rows[0]?.count ?? 0)
@@ -104,6 +109,26 @@ async function runMigrations(): Promise<void> {
   } catch {
     // safe to ignore
   }
+
+  // Add eightysixed_at to menu_items (M5 86'd Items)
+  try {
+    const col = await client!.execute({
+      sql: `SELECT name FROM pragma_table_info('menu_items') WHERE name = 'eightysixed_at'`,
+      args: [],
+    })
+    if (col.rows.length === 0) {
+      await client!.execute('ALTER TABLE menu_items ADD COLUMN eightysixed_at TEXT')
+      console.log('[db] migration: added eightysixed_at to menu_items')
+    }
+  } catch {
+    // safe to ignore
+  }
+
+  // Seed default locale (idempotent — INSERT OR IGNORE)
+  await client!.execute({
+    sql: `INSERT OR IGNORE INTO venue_settings (key, value, updated_at) VALUES ('locale', 'pt-BR', datetime('now'))`,
+    args: [],
+  })
 }
 
 async function seedDefaultVenue(): Promise<void> {

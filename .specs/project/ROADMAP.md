@@ -157,10 +157,11 @@ order traceability, and financial visibility for owners and managers.
 
 ### Localization
 
-**i18n (PT / EN)**
+**i18n (PT / EN)** — Spec complete ✅ → [.specs/features/m5-i18n/](../.specs/features/m5-i18n/)
 
-- Language configurable at install time and in admin settings
+- Language configurable in admin settings (defaults to PT-BR)
 - Full PT-BR and EN-US string coverage across desktop and mobile
+- Server error codes translated client-side via `@vynex/i18n`
 - Per-user language override in M7
 
 ### Resilience

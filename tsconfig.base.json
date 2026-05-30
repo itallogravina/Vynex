@@ -17,7 +17,8 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@vynex/shared": ["./packages/shared/src/index.ts"]
+      "@vynex/shared": ["./packages/shared/src/index.ts"],
+      "@vynex/i18n": ["./packages/i18n/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", "build"]

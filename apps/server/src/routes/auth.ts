@@ -9,6 +9,7 @@ import {
   deleteSession,
 } from '../db/queries'
 import { requireSession } from '../middleware/session'
+import { apiError } from '../lib/errors'
 import { LoginRequest } from '@vynex/shared'
 
 const { v4: uuid } = require('uuid')
@@ -31,8 +32,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           matches.push(u)
         }
       }
-      if (matches.length === 0) return reply.status(401).send({ error: 'Invalid credentials' })
-      if (matches.length > 1) return reply.status(409).send({ error: 'PIN conflict — contact manager' })
+      if (matches.length === 0) return apiError(reply, 401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials')
+      if (matches.length > 1) return apiError(reply, 409, 'AUTH_PIN_CONFLICT', 'PIN conflict — contact manager')
 
       const user = matches[0]!
       const token: string = uuid()
@@ -42,9 +43,9 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     if (body.login_method === 'password') {
       const user = await getUserByName(body.username)
-      if (!user || !user.password_hash) return reply.status(401).send({ error: 'Invalid credentials' })
+      if (!user || !user.password_hash) return apiError(reply, 401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials')
       const valid = await bcrypt.compare(body.password, user.password_hash)
-      if (!valid) return reply.status(401).send({ error: 'Invalid credentials' })
+      if (!valid) return apiError(reply, 401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials')
 
       const token: string = uuid()
       await createSession(token, user.id, SESSION_TTL_HOURS)
@@ -54,7 +55,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     if (body.login_method === 'list') {
       const user = await getUser(body.user_id)
       if (!user || user.login_method !== 'list' || !user.enabled) {
-        return reply.status(401).send({ error: 'Invalid credentials' })
+        return apiError(reply, 401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials')
       }
 
       const token: string = uuid()
@@ -62,7 +63,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return { token, user: { id: user.id, name: user.name, role: user.role }, expires_at: sessionExpiry() }
     }
 
-    return reply.status(400).send({ error: 'Invalid login_method' })
+    return apiError(reply, 400, 'AUTH_INVALID_METHOD', 'Invalid login_method')
   })
 
   app.delete('/logout', { preHandler: [requireSession] }, async (request, reply) => {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { RoutingZone, ItemStatus, OpenOrder } from '@vynex/shared'
+import { useTranslation } from '@vynex/i18n'
 import { useQueue } from '../hooks/useQueue'
 import '../styles/QueueScreen.css'
 import '../styles/CashierScreen.css'
@@ -10,6 +11,7 @@ const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws'
 type Tab = 'queue' | 'bills'
 
 export default function CashierScreen() {
+  const { t } = useTranslation()
   const { items, isConnected, error } = useQueue(RoutingZone.CASHIER)
   const [tab, setTab] = useState<Tab>('queue')
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([])
@@ -32,7 +34,6 @@ export default function CashierScreen() {
     }
   }
 
-  // Fetch open orders when Bills tab is active
   useEffect(() => {
     if (tab !== 'bills') return
     setLoadingBills(true)
@@ -40,11 +41,10 @@ export default function CashierScreen() {
     fetch(`${API_URL}/orders/open`)
       .then(r => r.json())
       .then(data => setOpenOrders(data))
-      .catch(() => setBillsError('Failed to load open orders'))
+      .catch(() => setBillsError(t('errors.GENERAL_UNKNOWN')))
       .finally(() => setLoadingBills(false))
   }, [tab, refreshKey])
 
-  // Listen for order:closed WS events to auto-refresh bills tab
   useEffect(() => {
     const ws = new WebSocket(`${WS_URL}?zones=cashier`)
     ws.onmessage = event => {
@@ -79,19 +79,19 @@ export default function CashierScreen() {
   return (
     <div className="queue-screen cashier-screen">
       <header className="screen-header">
-        <h1>Cashier</h1>
+        <h1>{t('cashier.title')}</h1>
         <div className="cashier-tabs">
           <button
             className={`tab-btn ${tab === 'queue' ? 'active' : ''}`}
             onClick={() => setTab('queue')}
           >
-            Queue
+            {t('cashier.queue')}
           </button>
           <button
             className={`tab-btn ${tab === 'bills' ? 'active' : ''}`}
             onClick={() => setTab('bills')}
           >
-            Bills
+            {t('cashier.bills')}
             {openOrders.length > 0 && tab !== 'bills' && (
               <span className="tab-badge">{openOrders.length}</span>
             )}
@@ -100,21 +100,20 @@ export default function CashierScreen() {
         {tab === 'queue' && (
           <div className="connection-status">
             {isConnected ? (
-              <span className="status-connected">● Connected</span>
+              <span className="status-connected">● {t('queue.connected')}</span>
             ) : (
-              <span className="status-disconnected">● Offline</span>
+              <span className="status-disconnected">● {t('queue.offline')}</span>
             )}
           </div>
         )}
       </header>
 
-      {/* Queue Tab */}
       {tab === 'queue' && (
         <>
           {error && <div className="error-banner">{error}</div>}
           <div className="queue-container">
             {items.length === 0 ? (
-              <div className="empty-queue">No items in queue</div>
+              <div className="empty-queue">{t('queue.noItems')}</div>
             ) : (
               <div className="items-grid">
                 {items.map(item => (
@@ -134,7 +133,7 @@ export default function CashierScreen() {
                           className="btn btn-success"
                           onClick={() => updateItemStatus(item.id, item.order_id, ItemStatus.SERVED)}
                         >
-                          Served
+                          {t('queue.served')}
                         </button>
                       )}
                       {item.status === 'served' && (
@@ -142,7 +141,7 @@ export default function CashierScreen() {
                           className="btn btn-info"
                           onClick={() => updateItemStatus(item.id, item.order_id, ItemStatus.BILLED)}
                         >
-                          Billed
+                          {t('queue.billed')}
                         </button>
                       )}
                     </div>
@@ -154,14 +153,13 @@ export default function CashierScreen() {
         </>
       )}
 
-      {/* Bills Tab */}
       {tab === 'bills' && (
         <div className="bills-container">
           {billsError && <div className="error-banner">{billsError}</div>}
           {loadingBills ? (
-            <div className="empty-queue">Loading open orders…</div>
+            <div className="empty-queue">{t('cashier.loadingOrders')}</div>
           ) : openOrders.length === 0 ? (
-            <div className="empty-queue">No open orders</div>
+            <div className="empty-queue">{t('cashier.noOpenOrders')}</div>
           ) : (
             <div className="bills-grid">
               {openOrders.map(order => (
@@ -187,7 +185,7 @@ export default function CashierScreen() {
                   </div>
 
                   <div className="bill-total-row">
-                    <span>Total</span>
+                    <span>{t('common.total')}</span>
                     <span className="bill-total-amount">R$ {order.total.toFixed(2)}</span>
                   </div>
 
@@ -197,14 +195,14 @@ export default function CashierScreen() {
                       disabled={closingId === order.id}
                       onClick={() => handleClose(order.id, 'cash')}
                     >
-                      {closingId === order.id ? 'Closing…' : 'Pay Cash'}
+                      {closingId === order.id ? t('cashier.closing') : t('cashier.payCash')}
                     </button>
                     <button
                       className="btn btn-card"
                       disabled={closingId === order.id}
                       onClick={() => handleClose(order.id, 'card')}
                     >
-                      {closingId === order.id ? 'Closing…' : 'Pay Card'}
+                      {closingId === order.id ? t('cashier.closing') : t('cashier.payCard')}
                     </button>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from '@vynex/i18n'
 import { useServerUrl } from '../context/ServerUrlContext'
 import { useAuth } from '../context/AuthContext'
 import { AuthResponse } from '@vynex/shared'
@@ -6,20 +7,16 @@ import { AuthResponse } from '@vynex/shared'
 type Tab = 'pin' | 'password' | 'list'
 
 export function LoginScreen() {
+  const { t } = useTranslation()
   const { serverUrl } = useServerUrl()
   const { login } = useAuth()
   const [tab, setTab] = useState<Tab>('pin')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // PIN state
   const [pin, setPin] = useState('')
-
-  // Password state
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-
-  // List state
   const [listUsers, setListUsers] = useState<{ id: string; name: string }[]>([])
   const [listLoading, setListLoading] = useState(false)
 
@@ -44,15 +41,15 @@ export function LoginScreen() {
       })
       const data = await res.json()
       if (!res.ok) {
-        if (res.status === 409) setError('Multiple users match this PIN — contact your manager.')
-        else if (res.status === 401) setError('Invalid credentials.')
-        else setError(data?.error ?? 'Login failed.')
+        if (res.status === 409) setError(t('auth.errors.AUTH_PIN_CONFLICT'))
+        else if (res.status === 401) setError(t('auth.errors.AUTH_INVALID_CREDENTIALS'))
+        else setError(data?.error ?? t('auth.loginFailed'))
         return
       }
       const auth = data as AuthResponse
       login(auth.token, auth.user)
     } catch {
-      setError('Server unreachable.')
+      setError(t('auth.serverUnreachable'))
     } finally {
       setLoading(false)
     }
@@ -75,13 +72,13 @@ export function LoginScreen() {
         <h1 className="login-title">Vynex</h1>
 
         <div className="login-tabs">
-          {(['pin', 'password', 'list'] as Tab[]).map(t => (
+          {(['pin', 'password', 'list'] as Tab[]).map(tab_ => (
             <button
-              key={t}
-              className={`login-tab ${tab === t ? 'active' : ''}`}
-              onClick={() => { setTab(t); setError(null); setPin('') }}
+              key={tab_}
+              className={`login-tab ${tab === tab_ ? 'active' : ''}`}
+              onClick={() => { setTab(tab_); setError(null); setPin('') }}
             >
-              {t === 'pin' ? 'PIN' : t === 'password' ? 'Password' : 'List'}
+              {tab_ === 'pin' ? t('auth.pin') : tab_ === 'password' ? t('auth.password') : t('auth.selectUser')}
             </button>
           ))}
         </div>
@@ -114,7 +111,7 @@ export function LoginScreen() {
           <div className="password-panel">
             <input
               className="login-input"
-              placeholder="Username"
+              placeholder={t('auth.username')}
               value={username}
               onChange={e => setUsername(e.target.value)}
               autoComplete="username"
@@ -122,7 +119,7 @@ export function LoginScreen() {
             <input
               className="login-input"
               type="password"
-              placeholder="Password"
+              placeholder={t('auth.password')}
               value={password}
               onChange={e => setPassword(e.target.value)}
               autoComplete="current-password"
@@ -133,7 +130,7 @@ export function LoginScreen() {
               disabled={loading || !username || !password}
               onClick={() => submitLogin({ login_method: 'password', username, password })}
             >
-              {loading ? 'Logging in…' : 'Log In'}
+              {loading ? t('auth.loggingIn') : t('auth.login')}
             </button>
           </div>
         )}
@@ -141,9 +138,9 @@ export function LoginScreen() {
         {tab === 'list' && (
           <div className="list-panel">
             {listLoading ? (
-              <p className="list-empty">Loading…</p>
+              <p className="list-empty">{t('common.loading')}</p>
             ) : listUsers.length === 0 ? (
-              <p className="list-empty">No users available.</p>
+              <p className="list-empty">{t('auth.noUsers')}</p>
             ) : (
               listUsers.map(u => (
                 <button

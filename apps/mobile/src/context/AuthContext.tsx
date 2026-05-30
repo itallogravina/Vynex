@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         const parsed = JSON.parse(stored) as AuthState
         if (!parsed?.token) return
         // Validate token against server
-        fetch(`${API_URL}/health`, { headers: { 'X-Session-Token': parsed.token } })
+        return fetch(`${API_URL}/health`, { headers: { 'X-Session-Token': parsed.token } })
           .then(res => {
             if (res.status === 401) {
               AsyncStorage.removeItem(STORAGE_KEY)

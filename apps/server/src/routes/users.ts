@@ -11,6 +11,7 @@ import {
 } from '../db/queries'
 import { requireSession } from '../middleware/session'
 import { requireRole } from '../middleware/roles'
+import { apiError } from '../lib/errors'
 import { Role, LoginMethod } from '@vynex/shared'
 
 const BCRYPT_ROUNDS = 10
@@ -44,10 +45,10 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
     const body = request.body as CreateUserBody
 
     if (body.login_method === 'pin' && !body.pin) {
-      return reply.status(400).send({ error: 'pin is required for pin login method' })
+      return apiError(reply, 400, 'GENERAL_VALIDATION', 'pin is required for pin login method')
     }
     if (body.login_method === 'password' && !body.password) {
-      return reply.status(400).send({ error: 'password is required for password login method' })
+      return apiError(reply, 400, 'GENERAL_VALIDATION', 'password is required for password login method')
     }
 
     const { pinHash, passwordHash } = await hashCredentials(body)
@@ -60,7 +61,7 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
     const body = request.body as Partial<CreateUserBody & { enabled: boolean }>
 
     const existing = await getUser(id)
-    if (!existing) return reply.status(404).send({ error: 'User not found' })
+    if (!existing) return apiError(reply, 404, 'USER_NOT_FOUND', 'User not found')
 
     const fields: Parameters<typeof updateUser>[1] = {}
     if (body.name !== undefined) fields.name = body.name
@@ -77,7 +78,7 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
     const { id } = request.params as { id: string }
 
     const existing = await getUser(id)
-    if (!existing) return reply.status(404).send({ error: 'User not found' })
+    if (!existing) return apiError(reply, 404, 'USER_NOT_FOUND', 'User not found')
 
     if (await userHasOrders(id)) {
       await disableUser(id)

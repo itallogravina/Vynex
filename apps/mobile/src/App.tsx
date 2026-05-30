@@ -2,6 +2,7 @@ import React from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView, StyleSheet } from 'react-native'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { I18nProvider } from './context/I18nContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginScreen from './screens/LoginScreen'
 import OrderScreen from './screens/OrderScreen'
@@ -14,12 +15,14 @@ function AppGate(): React.JSX.Element {
 export default function App(): React.JSX.Element {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <SafeAreaView style={styles.container}>
-          <AppGate />
-          <StatusBar style="auto" />
-        </SafeAreaView>
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <SafeAreaView style={styles.container}>
+            <AppGate />
+            <StatusBar style="auto" />
+          </SafeAreaView>
+        </AuthProvider>
+      </I18nProvider>
     </ErrorBoundary>
   )
 }

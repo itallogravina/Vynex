@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { User, Role, LoginMethod } from '@vynex/shared'
+import { useTranslation } from '@vynex/i18n'
 import { useApi } from '../lib/api'
 
 type UserForm = {
@@ -19,6 +20,7 @@ const ROLES: Role[] = ['owner', 'manager', 'cashier', 'waiter', 'bartender', 'ki
 const LOGIN_METHODS: LoginMethod[] = ['pin', 'password', 'list']
 
 export default function UsersScreen() {
+  const { t } = useTranslation()
   const api = useApi()
   const [users, setUsers] = useState<User[]>([])
   const [form, setForm] = useState<UserForm>(BLANK_FORM)
@@ -27,12 +29,10 @@ export default function UsersScreen() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Bulk import
   const [bulkJson, setBulkJson] = useState('')
   const [bulkResult, setBulkResult] = useState<{ created: number; errors: { index: number; error: string }[] } | null>(null)
   const [bulkLoading, setBulkLoading] = useState(false)
 
-  // Auto-generate
   const [genRole, setGenRole] = useState<Role>('waiter')
   const [genCount, setGenCount] = useState('3')
 
@@ -65,28 +65,28 @@ export default function UsersScreen() {
 
       if (editId) {
         await api.patch(`/users/${editId}`, body)
-        setSuccess('User updated.')
+        setSuccess(t('users.updated'))
       } else {
         await api.post('/users', body)
-        setSuccess('User created.')
+        setSuccess(t('users.created'))
       }
       cancelEdit()
       loadUsers()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(u: User) {
-    if (!confirm(`Remove ${u.name}?`)) return
+    if (!confirm(t('users.removeConfirm', { name: u.name }))) return
     try {
       await api.del(`/users/${u.id}`)
-      setSuccess(`${u.name} removed.`)
+      setSuccess(t('users.removed', { name: u.name }))
       loadUsers()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     }
   }
 
@@ -100,7 +100,7 @@ export default function UsersScreen() {
       setBulkResult(data)
       if (data.created > 0) loadUsers()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bulk import failed')
+      setError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     } finally {
       setBulkLoading(false)
     }
@@ -122,87 +122,89 @@ export default function UsersScreen() {
 
   return (
     <div className="screen-users">
-      <h2>Users</h2>
+      <h2>{t('users.title')}</h2>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
-      {/* Form */}
       <div className="users-form card">
-        <h3>{editId ? 'Edit User' : 'Add User'}</h3>
+        <h3>{editId ? t('users.editUser') : t('users.newUser')}</h3>
         <div className="form-row">
-          <input className="input" placeholder="Name" value={form.name} onChange={e => f('name', e.target.value)} />
+          <input className="input" placeholder={t('users.userName')} value={form.name} onChange={e => f('name', e.target.value)} />
           <select className="select" value={form.role} onChange={e => f('role', e.target.value as Role)}>
-            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+            {ROLES.map(r => <option key={r} value={r}>{t(`roles.${r}` as Parameters<typeof t>[0])}</option>)}
           </select>
           <select className="select" value={form.login_method} onChange={e => f('login_method', e.target.value as LoginMethod)}>
-            {LOGIN_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+            {LOGIN_METHODS.map(m => <option key={m} value={m}>{t(`users.loginMethods.${m}` as Parameters<typeof t>[0])}</option>)}
           </select>
           {form.login_method === 'pin' && (
-            <input className="input" placeholder="PIN" value={form.pin} onChange={e => f('pin', e.target.value)} />
+            <input className="input" placeholder={t('users.pin')} value={form.pin} onChange={e => f('pin', e.target.value)} />
           )}
           {form.login_method === 'password' && (
-            <input className="input" type="password" placeholder="Password" value={form.password} onChange={e => f('password', e.target.value)} />
+            <input className="input" type="password" placeholder={t('auth.password')} value={form.password} onChange={e => f('password', e.target.value)} />
           )}
           {editId && (
             <label className="checkbox-label">
               <input type="checkbox" checked={form.enabled} onChange={e => f('enabled', e.target.checked)} />
-              Enabled
+              {t('users.enabled')}
             </label>
           )}
         </div>
         <div className="form-actions">
           <button className="btn btn-primary" onClick={handleSave} disabled={saving || !form.name}>
-            {saving ? 'Saving…' : editId ? 'Update' : 'Create'}
+            {saving ? t('common.saving') : editId ? t('common.update') : t('common.create')}
           </button>
-          {editId && <button className="btn" onClick={cancelEdit}>Cancel</button>}
+          {editId && <button className="btn" onClick={cancelEdit}>{t('common.cancel')}</button>}
         </div>
       </div>
 
-      {/* Users table */}
       <div className="users-table card">
         <table>
           <thead>
             <tr>
-              <th>Name</th><th>Role</th><th>Login</th><th>Status</th><th>Actions</th>
+              <th>{t('common.name')}</th>
+              <th>{t('users.role')}</th>
+              <th>{t('users.loginMethod')}</th>
+              <th>{t('common.status')}</th>
+              <th>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {users.map(u => (
               <tr key={u.id} className={!u.enabled ? 'row-disabled' : ''}>
                 <td>{u.name}</td>
-                <td>{u.role}</td>
-                <td>{u.login_method}</td>
-                <td>{u.enabled ? 'Active' : 'Disabled'}</td>
+                <td>{t(`roles.${u.role}` as Parameters<typeof t>[0])}</td>
+                <td>{t(`users.loginMethods.${u.login_method}` as Parameters<typeof t>[0])}</td>
+                <td>{u.enabled ? t('users.enabled') : t('users.disabled')}</td>
                 <td>
-                  <button className="btn btn-sm" onClick={() => startEdit(u)}>Edit</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(u)}>Remove</button>
+                  <button className="btn btn-sm" onClick={() => startEdit(u)}>{t('common.edit')}</button>
+                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(u)}>{t('common.remove')}</button>
                 </td>
               </tr>
             ))}
-            {users.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: '#999' }}>No users yet.</td></tr>}
+            {users.length === 0 && (
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#999' }}>{t('users.noUsersYet')}</td></tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Auto-generate */}
       <div className="users-gen card">
-        <h3>Auto-generate</h3>
+        <h3>{t('users.autoGenerate')}</h3>
         <div className="form-row">
           <select className="select" value={genRole} onChange={e => setGenRole(e.target.value as Role)}>
-            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+            {ROLES.map(r => <option key={r} value={r}>{t(`roles.${r}` as Parameters<typeof t>[0])}</option>)}
           </select>
           <input
             className="input" style={{ width: 80 }} type="number" min={1} max={20}
             value={genCount} onChange={e => setGenCount(e.target.value)}
           />
-          <button className="btn" onClick={handleAutoGenerate}>Generate JSON</button>
+          <button className="btn" onClick={handleAutoGenerate}>{t('users.generateJson')}</button>
         </div>
       </div>
 
-      {/* Bulk import */}
       <div className="users-bulk card">
-        <h3>Bulk Import (JSON)</h3>
+        <h3>{t('users.bulkImport')} (JSON)</h3>
         <textarea
           className="bulk-textarea"
           rows={8}
@@ -211,11 +213,11 @@ export default function UsersScreen() {
           onChange={e => setBulkJson(e.target.value)}
         />
         <button className="btn btn-primary" onClick={handleBulkImport} disabled={bulkLoading || !bulkJson.trim()}>
-          {bulkLoading ? 'Importing…' : 'Import'}
+          {bulkLoading ? t('users.importing') : t('common.import')}
         </button>
         {bulkResult && (
           <div className="bulk-result">
-            <span className="text-success">Created: {bulkResult.created}</span>
+            <span className="text-success">{t('users.createdCount', { count: bulkResult.created })}</span>
             {bulkResult.errors.length > 0 && (
               <ul className="bulk-errors">
                 {bulkResult.errors.map(e => <li key={e.index}>#{e.index}: {e.error}</li>)}

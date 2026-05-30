@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { CategoryWithItems, MenuItem, RoutingZone } from '@vynex/shared'
+import { useTranslation } from '@vynex/i18n'
+import { useAuth } from '../context/AuthContext'
 import '../styles/TableManagement.css'
 import '../styles/MenuManagement.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-
-const ZONE_LABELS: Record<string, string> = {
-  kitchen: 'Kitchen',
-  bar: 'Bar',
-  cashier: 'Cashier',
-  table: 'Table',
-}
 
 const ZONE_COLORS: Record<string, string> = {
   kitchen: '#e67e22',
@@ -24,11 +19,12 @@ type CatForm = { name: string; routing_zone: RoutingZone }
 type EditItem = { id: string } & ItemForm
 
 export default function MenuManagementScreen() {
+  const { t } = useTranslation()
+  const { token } = useAuth()
   const [categories, setCategories] = useState<CategoryWithItems[]>([])
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Item form state
   const [showItemForm, setShowItemForm] = useState(false)
   const [editItem, setEditItem] = useState<EditItem | null>(null)
   const [itemForm, setItemForm] = useState<ItemForm>({
@@ -38,7 +34,6 @@ export default function MenuManagementScreen() {
   })
   const [savingItem, setSavingItem] = useState(false)
 
-  // Category form state
   const [showCatForm, setShowCatForm] = useState(false)
   const [catForm, setCatForm] = useState<CatForm>({
     name: '',
@@ -68,7 +63,8 @@ export default function MenuManagementScreen() {
 
   const selectedCat = categories.find(c => c.id === selectedCatId) ?? null
 
-  // ---- Category actions ----
+  const zoneLabel = (zone: string) =>
+    t(`menu.routingZones.${zone}` as Parameters<typeof t>[0]) || zone
 
   const handleAddCategory = async () => {
     if (!catForm.name.trim()) return
@@ -82,13 +78,13 @@ export default function MenuManagementScreen() {
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to create category')
+        throw new Error(data.error || t('errors.GENERAL_UNKNOWN'))
       }
       setShowCatForm(false)
       setCatForm({ name: '', routing_zone: RoutingZone.KITCHEN })
       fetchCategories()
     } catch (err) {
-      setOpError(err instanceof Error ? err.message : 'Failed to create category')
+      setOpError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     } finally {
       setSavingCat(false)
     }
@@ -97,23 +93,21 @@ export default function MenuManagementScreen() {
   const handleDeleteCategory = async (catId: string) => {
     const cat = categories.find(c => c.id === catId)
     if (cat && cat.items.length > 0) {
-      setOpError(`Delete all items in "${cat.name}" first`)
+      setOpError(t('menu.deleteAllItemsFirst', { name: cat.name }))
       return
     }
     try {
       const res = await fetch(`${API_URL}/categories/${catId}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to delete category')
+        throw new Error(data.error || t('errors.GENERAL_UNKNOWN'))
       }
       if (selectedCatId === catId) setSelectedCatId(null)
       fetchCategories()
     } catch (err) {
-      setOpError(err instanceof Error ? err.message : 'Failed to delete category')
+      setOpError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     }
   }
-
-  // ---- Item actions ----
 
   const openAddItem = () => {
     setEditItem(null)
@@ -171,12 +165,12 @@ export default function MenuManagementScreen() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to save item')
+        throw new Error(data.error || t('errors.GENERAL_UNKNOWN'))
       }
       closeItemForm()
       fetchCategories()
     } catch (err) {
-      setOpError(err instanceof Error ? err.message : 'Failed to save item')
+      setOpError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     } finally {
       setSavingItem(false)
     }
@@ -188,7 +182,24 @@ export default function MenuManagementScreen() {
       if (!res.ok) throw new Error('Failed to toggle item')
       fetchCategories()
     } catch (err) {
-      setOpError(err instanceof Error ? err.message : 'Failed to toggle item')
+      setOpError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
+    }
+  }
+
+  const handleEightysixItem = async (item: MenuItem) => {
+    try {
+      const res = await fetch(`${API_URL}/menu-items/${item.id}/eightysix`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Session-Token': token } : {}) },
+        body: JSON.stringify({ active: !item.eightysixed }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error((data as { error?: string }).error || t('errors.GENERAL_UNKNOWN'))
+      }
+      fetchCategories()
+    } catch (err) {
+      setOpError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     }
   }
 
@@ -197,18 +208,18 @@ export default function MenuManagementScreen() {
       const res = await fetch(`${API_URL}/menu-items/${item.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to delete item')
+        throw new Error(data.error || t('errors.GENERAL_UNKNOWN'))
       }
       fetchCategories()
     } catch (err) {
-      setOpError(err instanceof Error ? err.message : 'Failed to delete item')
+      setOpError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     }
   }
 
   return (
     <div className="mgmt-screen menu-mgmt">
       <header className="mgmt-header">
-        <h1>Menu Management</h1>
+        <h1>{t('menu.title')}</h1>
       </header>
 
       {opError && (
@@ -218,12 +229,11 @@ export default function MenuManagementScreen() {
       )}
 
       {loading ? (
-        <div className="mgmt-empty">Loading…</div>
+        <div className="mgmt-empty">{t('common.loading')}</div>
       ) : (
         <div className="menu-layout">
-          {/* Categories sidebar */}
           <aside className="categories-panel">
-            <div className="panel-title">Categories</div>
+            <div className="panel-title">{t('menu.categories')}</div>
             <div className="categories-list">
               {categories.map(cat => (
                 <div
@@ -237,7 +247,7 @@ export default function MenuManagementScreen() {
                       className="cat-zone-badge"
                       style={{ background: ZONE_COLORS[cat.routing_zone] }}
                     >
-                      {ZONE_LABELS[cat.routing_zone]}
+                      {zoneLabel(cat.routing_zone)}
                     </span>
                   </div>
                   <span className="cat-count">{cat.items.length}</span>
@@ -247,7 +257,7 @@ export default function MenuManagementScreen() {
                       e.stopPropagation()
                       handleDeleteCategory(cat.id)
                     }}
-                    title="Delete category"
+                    title={t('common.delete')}
                   >
                     ✕
                   </button>
@@ -260,7 +270,7 @@ export default function MenuManagementScreen() {
                 <input
                   autoFocus
                   type="text"
-                  placeholder="Category name"
+                  placeholder={t('menu.categoryName')}
                   value={catForm.name}
                   onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))}
                   onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
@@ -271,32 +281,31 @@ export default function MenuManagementScreen() {
                 >
                   {Object.values(RoutingZone).map(z => (
                     <option key={z} value={z}>
-                      {ZONE_LABELS[z]}
+                      {zoneLabel(z)}
                     </option>
                   ))}
                 </select>
                 <div className="cat-form-actions">
-                  <button onClick={() => setShowCatForm(false)}>Cancel</button>
+                  <button onClick={() => setShowCatForm(false)}>{t('common.cancel')}</button>
                   <button
                     className="btn-confirm"
                     disabled={savingCat || !catForm.name.trim()}
                     onClick={handleAddCategory}
                   >
-                    Add
+                    {t('common.add')}
                   </button>
                 </div>
               </div>
             ) : (
               <button className="cat-add-btn" onClick={() => setShowCatForm(true)}>
-                + Add Category
+                {t('menu.addCategory')}
               </button>
             )}
           </aside>
 
-          {/* Items main panel */}
           <main className="items-panel">
             {!selectedCat ? (
-              <div className="mgmt-empty">Select a category</div>
+              <div className="mgmt-empty">{t('menu.selectCategory')}</div>
             ) : (
               <>
                 <div className="items-panel-header">
@@ -306,45 +315,57 @@ export default function MenuManagementScreen() {
                       className="zone-tag"
                       style={{ background: ZONE_COLORS[selectedCat.routing_zone] }}
                     >
-                      {ZONE_LABELS[selectedCat.routing_zone]}
+                      {zoneLabel(selectedCat.routing_zone)}
                     </span>
                   </div>
                   <button className="btn-add" onClick={openAddItem}>
-                    + Add Item
+                    {t('menu.addItem')}
                   </button>
                 </div>
 
                 {selectedCat.items.length === 0 ? (
                   <div className="mgmt-empty" style={{ flex: 1 }}>
-                    No items in this category
+                    {t('menu.noItemsInCategory')}
                   </div>
                 ) : (
                   <div className="menu-items-list">
                     {selectedCat.items.map(item => (
-                      <div key={item.id} className={`menu-item-row ${item.enabled ? '' : 'item-disabled'}`}>
+                      <div
+                        key={item.id}
+                        className={`menu-item-row ${item.enabled ? '' : 'item-disabled'} ${item.eightysixed ? 'item-eightysixed' : ''}`}
+                      >
                         <div className="menu-item-info">
                           <span className="menu-item-name">{item.name}</span>
                           <span
                             className="zone-tag zone-tag-sm"
                             style={{ background: ZONE_COLORS[item.routing_zone] }}
                           >
-                            {ZONE_LABELS[item.routing_zone]}
+                            {zoneLabel(item.routing_zone)}
                           </span>
+                          {item.eightysixed && (
+                            <span className="eightysix-badge">{t('menu.outOfStock')}</span>
+                          )}
                         </div>
                         <span className="menu-item-price">R$ {item.price.toFixed(2)}</span>
                         <div className="menu-item-actions">
                           <button
                             className={`toggle-btn ${item.enabled ? 'enabled' : 'disabled'}`}
                             onClick={() => handleToggleItem(item)}
-                            title={item.enabled ? 'Disable item' : 'Enable item'}
+                            title={item.enabled ? t('menu.disabled') : t('menu.enabled')}
                           >
-                            {item.enabled ? 'Active' : 'Off'}
+                            {item.enabled ? t('menu.enabled') : t('menu.disabled')}
+                          </button>
+                          <button
+                            className={`btn-icon ${item.eightysixed ? 'btn-clear-86' : 'btn-86'}`}
+                            onClick={() => handleEightysixItem(item)}
+                          >
+                            {item.eightysixed ? t('menu.clearEightysix') : t('menu.eightysix')}
                           </button>
                           <button className="btn-icon btn-edit" onClick={() => openEditItem(item)}>
-                            Edit
+                            {t('common.edit')}
                           </button>
                           <button className="btn-icon btn-delete" onClick={() => handleDeleteItem(item)}>
-                            Del
+                            {t('common.delete')}
                           </button>
                         </div>
                       </div>
@@ -357,14 +378,13 @@ export default function MenuManagementScreen() {
         </div>
       )}
 
-      {/* Item add/edit modal */}
       {showItemForm && (
         <div className="modal-overlay" onClick={closeItemForm}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h2>{editItem ? 'Edit Item' : 'New Item'}</h2>
+            <h2>{editItem ? t('menu.editItem') : t('menu.newItem')}</h2>
 
             <div className="modal-field">
-              <label>Name</label>
+              <label>{t('menu.itemName')}</label>
               <input
                 autoFocus
                 type="text"
@@ -376,7 +396,7 @@ export default function MenuManagementScreen() {
             </div>
 
             <div className="modal-field">
-              <label>Price (R$)</label>
+              <label>{t('menu.price')} (R$)</label>
               <input
                 type="number"
                 min={0}
@@ -389,14 +409,14 @@ export default function MenuManagementScreen() {
             </div>
 
             <div className="modal-field">
-              <label>Routes to</label>
+              <label>{t('menu.routingZone')}</label>
               <select
                 value={itemForm.routing_zone}
                 onChange={e => setItemForm(f => ({ ...f, routing_zone: e.target.value as RoutingZone }))}
               >
                 {Object.values(RoutingZone).map(z => (
                   <option key={z} value={z}>
-                    {ZONE_LABELS[z]}
+                    {zoneLabel(z)}
                   </option>
                 ))}
               </select>
@@ -404,14 +424,14 @@ export default function MenuManagementScreen() {
 
             <div className="modal-actions">
               <button className="btn-cancel" onClick={closeItemForm}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 className="btn-save"
                 disabled={savingItem || !itemForm.name.trim() || itemForm.price === ''}
                 onClick={handleSaveItem}
               >
-                {savingItem ? 'Saving…' : 'Save'}
+                {savingItem ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { TableWithStatus } from '@vynex/shared'
+import { useTranslation } from '@vynex/i18n'
 import '../styles/TableManagement.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -8,6 +9,7 @@ type FormState = { name: string; seats: string }
 type EditTarget = { id: string } & FormState
 
 export default function TableManagementScreen() {
+  const { t } = useTranslation()
   const [tables, setTables] = useState<TableWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -66,12 +68,12 @@ export default function TableManagementScreen() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to save table')
+        throw new Error(data.error || t('errors.GENERAL_UNKNOWN'))
       }
       closeForm()
       fetchTables()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save table')
+      setSaveError(err instanceof Error ? err.message : t('errors.GENERAL_UNKNOWN'))
     } finally {
       setSaving(false)
     }
@@ -79,7 +81,7 @@ export default function TableManagementScreen() {
 
   const handleDelete = async (table: TableWithStatus) => {
     if (table.status === 'occupied') {
-      setDeleteError(`${table.name} has an open order — close it first`)
+      setDeleteError(t('tables.hasOpenOrder', { name: table.name }))
       return
     }
     setDeleteError(null)
@@ -88,16 +90,16 @@ export default function TableManagementScreen() {
       fetchTables()
     } else {
       const data = await res.json()
-      setDeleteError(data.error || 'Failed to delete table')
+      setDeleteError(data.error || t('errors.GENERAL_UNKNOWN'))
     }
   }
 
   return (
     <div className="mgmt-screen">
       <header className="mgmt-header">
-        <h1>Table Management</h1>
+        <h1>{t('tables.title')}</h1>
         <button className="btn-add" onClick={openAdd}>
-          + Add Table
+          {t('tables.addTable')}
         </button>
       </header>
 
@@ -108,9 +110,9 @@ export default function TableManagementScreen() {
       )}
 
       {loading ? (
-        <div className="mgmt-empty">Loading tables…</div>
+        <div className="mgmt-empty">{t('common.loading')}</div>
       ) : tables.length === 0 ? (
-        <div className="mgmt-empty">No tables yet. Add one to get started.</div>
+        <div className="mgmt-empty">{t('tables.noTablesYet')}</div>
       ) : (
         <div className="tables-grid">
           {tables.map(table => (
@@ -121,21 +123,21 @@ export default function TableManagementScreen() {
               <div className="table-card-header">
                 <span className={`table-status-dot dot-${table.status}`} />
                 <span className="table-status-label">
-                  {table.status === 'occupied' ? 'Occupied' : 'Free'}
+                  {table.status === 'occupied' ? t('tables.status.occupied') : t('tables.status.available')}
                 </span>
               </div>
               <div className="table-name-large">{table.name}</div>
-              <div className="table-seats">{table.seats} seats</div>
+              <div className="table-seats">{table.seats} {t('tables.seats').toLowerCase()}</div>
               <div className="table-card-actions">
                 <button className="btn-icon btn-edit" onClick={() => openEdit(table)}>
-                  Edit
+                  {t('common.edit')}
                 </button>
                 <button
                   className="btn-icon btn-delete"
                   disabled={table.status === 'occupied'}
                   onClick={() => handleDelete(table)}
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             </div>
@@ -143,11 +145,10 @@ export default function TableManagementScreen() {
         </div>
       )}
 
-      {/* Add / Edit modal */}
       {showForm && (
         <div className="modal-overlay" onClick={closeForm}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h2>{editTarget ? 'Edit Table' : 'New Table'}</h2>
+            <h2>{editTarget ? t('tables.editTable') : t('tables.newTable')}</h2>
 
             {saveError && (
               <div className="mgmt-error" onClick={() => setSaveError(null)}>
@@ -156,7 +157,7 @@ export default function TableManagementScreen() {
             )}
 
             <div className="modal-field">
-              <label>Name</label>
+              <label>{t('tables.tableName')}</label>
               <input
                 autoFocus
                 type="text"
@@ -168,7 +169,7 @@ export default function TableManagementScreen() {
             </div>
 
             <div className="modal-field">
-              <label>Seats</label>
+              <label>{t('tables.seats')}</label>
               <input
                 type="number"
                 min={1}
@@ -181,14 +182,14 @@ export default function TableManagementScreen() {
 
             <div className="modal-actions">
               <button className="btn-cancel" onClick={closeForm}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 className="btn-save"
                 disabled={saving || !form.name.trim()}
                 onClick={handleSave}
               >
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </div>

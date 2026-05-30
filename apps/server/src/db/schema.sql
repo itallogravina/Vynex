@@ -101,6 +101,13 @@ CREATE TABLE IF NOT EXISTS sessions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Venue-level key-value settings (locale, etc.)
+CREATE TABLE IF NOT EXISTS venue_settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_tables_venue_id ON tables(venue_id);
 CREATE INDEX IF NOT EXISTS idx_categories_venue_id ON categories(venue_id);

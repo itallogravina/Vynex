@@ -1,10 +1,12 @@
 import { RoutingZone, ItemStatus } from '@vynex/shared'
+import { useTranslation } from '@vynex/i18n'
 import { useQueue } from '../hooks/useQueue'
 import '../styles/QueueScreen.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function BarScreen() {
+  const { t } = useTranslation()
   const { items, isConnected, error } = useQueue(RoutingZone.BAR)
 
   const updateStatus = async (itemId: string, orderId: string, newStatus: ItemStatus) => {
@@ -23,12 +25,12 @@ export default function BarScreen() {
   return (
     <div className="queue-screen bar-screen">
       <header className="screen-header">
-        <h1>Bar Queue</h1>
+        <h1>{t('queue.bar')}</h1>
         <div className="connection-status">
           {isConnected ? (
-            <span className="status-connected">● Connected</span>
+            <span className="status-connected">● {t('queue.connected')}</span>
           ) : (
-            <span className="status-disconnected">● Offline</span>
+            <span className="status-disconnected">● {t('queue.offline')}</span>
           )}
         </div>
       </header>
@@ -37,7 +39,7 @@ export default function BarScreen() {
 
       <div className="queue-container">
         {items.length === 0 ? (
-          <div className="empty-queue">No items in queue</div>
+          <div className="empty-queue">{t('queue.noItems')}</div>
         ) : (
           <div className="items-grid">
             {items.map(item => (
@@ -57,7 +59,7 @@ export default function BarScreen() {
                       className="btn btn-primary"
                       onClick={() => updateStatus(item.id, item.order_id, ItemStatus.PREPARING)}
                     >
-                      Start Prep
+                      {t('queue.startPrep')}
                     </button>
                   )}
                   {item.status === 'preparing' && (
@@ -65,7 +67,7 @@ export default function BarScreen() {
                       className="btn btn-success"
                       onClick={() => updateStatus(item.id, item.order_id, ItemStatus.READY)}
                     >
-                      Mark Ready
+                      {t('queue.markReady')}
                     </button>
                   )}
                 </div>

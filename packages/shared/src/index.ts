@@ -37,6 +37,7 @@ export type MenuItem = {
   price: number
   routing_zone: RoutingZone
   enabled: boolean
+  eightysixed: boolean
   created_at: string
   updated_at: string
 }
