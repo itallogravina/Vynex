@@ -83,6 +83,43 @@ async function runMigrations(): Promise<void> {
     // Columns may already exist; safe to ignore
   }
 
+  // Widen orders.payment_method CHECK to include 'cancelled' (M5 force-delete)
+  try {
+    const masterRow = await client!.execute({
+      sql: `SELECT sql FROM sqlite_master WHERE type='table' AND name='orders'`,
+      args: [],
+    })
+    const ddl = (masterRow.rows[0]?.sql as string) ?? ''
+    if (!ddl.includes('cancelled')) {
+      await client!.execute('PRAGMA foreign_keys = OFF')
+      await client!.execute(`
+        CREATE TABLE IF NOT EXISTS orders_new (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL,
+          routing_mode TEXT NOT NULL CHECK(routing_mode IN ('manual', 'auto')),
+          status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed')),
+          payment_method TEXT CHECK(payment_method IN ('cash', 'card', 'cancelled')),
+          closed_at TEXT,
+          opened_by TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (table_id) REFERENCES tables(id)
+        )
+      `)
+      await client!.execute(
+        `INSERT INTO orders_new SELECT id, table_id, routing_mode, status, payment_method,
+           closed_at, opened_by, created_at, updated_at FROM orders`
+      )
+      await client!.execute('DROP TABLE orders')
+      await client!.execute('ALTER TABLE orders_new RENAME TO orders')
+      await client!.execute('CREATE INDEX IF NOT EXISTS idx_orders_table_id ON orders(table_id)')
+      await client!.execute('PRAGMA foreign_keys = ON')
+      console.log('[db] migration: orders.payment_method CHECK widened to include cancelled')
+    }
+  } catch (e) {
+    console.error('[db] migration failed (orders CHECK):', e)
+  }
+
   // Add opened_by/added_by traceability columns (M4)
   try {
     const ordCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('orders')`, args: [] })

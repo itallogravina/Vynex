@@ -1,13 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { TableWithStatus } from '@vynex/shared'
+import { useAuthedFetch } from '../context/AuthContext'
+import { useServerUrl } from '../context/ServerUrlContext'
 import '../styles/TableManagement.css'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 type FormState = { name: string; seats: string }
 type EditTarget = { id: string } & FormState
+type ForceDialog = { table: TableWithStatus; openOrders: number }
 
 export default function TableManagementScreen() {
+  const apiFetch = useAuthedFetch()
+  const { serverUrl } = useServerUrl()
+
   const [tables, setTables] = useState<TableWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -16,15 +20,17 @@ export default function TableManagementScreen() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [forceDialog, setForceDialog] = useState<ForceDialog | null>(null)
+  const [forceLoading, setForceLoading] = useState(false)
 
   const fetchTables = useCallback(() => {
     setLoading(true)
-    fetch(`${API_URL}/tables/status`)
+    fetch(`${serverUrl}/tables/status`)
       .then(r => r.json())
       .then(data => setTables(data))
       .catch(err => console.error('Failed to fetch tables:', err))
       .finally(() => setLoading(false))
-  }, [])
+  }, [serverUrl])
 
   useEffect(() => {
     fetchTables()
@@ -55,7 +61,7 @@ export default function TableManagementScreen() {
     setSaving(true)
     setSaveError(null)
     try {
-      const url = editTarget ? `${API_URL}/tables/${editTarget.id}` : `${API_URL}/tables`
+      const url = editTarget ? `${serverUrl}/tables/${editTarget.id}` : `${serverUrl}/tables`
       const method = editTarget ? 'PATCH' : 'POST'
 
       const res = await fetch(url, {
@@ -78,17 +84,39 @@ export default function TableManagementScreen() {
   }
 
   const handleDelete = async (table: TableWithStatus) => {
-    if (table.status === 'occupied') {
-      setDeleteError(`${table.name} has an open order — close it first`)
+    setDeleteError(null)
+    const res = await fetch(`${serverUrl}/tables/${table.id}`, { method: 'DELETE' })
+    if (res.status === 204) {
+      fetchTables()
       return
     }
+    if (res.status === 409) {
+      const data = await res.json().catch(() => ({}))
+      if (data.error === 'TABLE_HAS_OPEN_ORDERS') {
+        setForceDialog({ table, openOrders: data.open_orders as number })
+        return
+      }
+    }
+    const data = await res.json().catch(() => ({}))
+    setDeleteError(data.error || 'Failed to delete table')
+  }
+
+  const handleForceDelete = async () => {
+    if (!forceDialog) return
+    setForceLoading(true)
     setDeleteError(null)
-    const res = await fetch(`${API_URL}/tables/${table.id}`, { method: 'DELETE' })
-    if (res.ok) {
-      fetchTables()
-    } else {
-      const data = await res.json()
-      setDeleteError(data.error || 'Failed to delete table')
+    try {
+      const res = await apiFetch(`${serverUrl}/tables/${forceDialog.table.id}/force`, { method: 'DELETE' })
+      if (res.status === 204) {
+        setForceDialog(null)
+        fetchTables()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setForceDialog(null)
+        setDeleteError(data.error || 'Force delete failed')
+      }
+    } finally {
+      setForceLoading(false)
     }
   }
 
@@ -130,16 +158,34 @@ export default function TableManagementScreen() {
                 <button className="btn-icon btn-edit" onClick={() => openEdit(table)}>
                   Edit
                 </button>
-                <button
-                  className="btn-icon btn-delete"
-                  disabled={table.status === 'occupied'}
-                  onClick={() => handleDelete(table)}
-                >
+                <button className="btn-icon btn-delete" onClick={() => handleDelete(table)}>
                   Delete
                 </button>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Force-delete confirmation dialog */}
+      {forceDialog && (
+        <div className="modal-overlay" onClick={() => !forceLoading && setForceDialog(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Force Delete Table</h2>
+            <p className="modal-warning">
+              <strong>{forceDialog.table.name}</strong> has{' '}
+              <strong>{forceDialog.openOrders}</strong> open order{forceDialog.openOrders !== 1 ? 's' : ''}.
+              Force delete will cancel all open orders. Proceed?
+            </p>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setForceDialog(null)} disabled={forceLoading}>
+                Cancel
+              </button>
+              <button className="btn-delete-confirm" onClick={handleForceDelete} disabled={forceLoading}>
+                {forceLoading ? 'Deleting…' : 'Force Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

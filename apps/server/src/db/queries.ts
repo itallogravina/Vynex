@@ -485,20 +485,40 @@ export async function updateTable(tableId: string, name: string, seats: number):
   return (await getTable(tableId))!
 }
 
-export async function deleteTable(tableId: string): Promise<{ ok: boolean; error?: string }> {
+export async function deleteTable(
+  tableId: string
+): Promise<{ ok: true } | { ok: false; code: 'TABLE_HAS_OPEN_ORDERS'; open_orders: number }> {
   const client = getClient()
-  const result = await client.execute({
+
+  const openResult = await client.execute({
     sql: "SELECT COUNT(*) as count FROM orders WHERE table_id = ? AND status = 'open'",
     args: [tableId],
   })
-  const count = Number(result.rows[0]?.count ?? 0)
+  const openCount = Number(openResult.rows[0]?.count ?? 0)
 
-  if (count > 0) {
-    return { ok: false, error: 'Table has an open order — close it before deleting' }
+  if (openCount > 0) {
+    return { ok: false, code: 'TABLE_HAS_OPEN_ORDERS', open_orders: openCount }
   }
 
+  // Delete closed orders referencing this table (FK constraint), then delete table
+  await client.execute({ sql: 'DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_id = ?)', args: [tableId] })
+  await client.execute({ sql: 'DELETE FROM orders WHERE table_id = ?', args: [tableId] })
   await client.execute({ sql: 'DELETE FROM tables WHERE id = ?', args: [tableId] })
   return { ok: true }
+}
+
+export async function forceDeleteTable(tableId: string): Promise<void> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: `UPDATE orders SET status = 'closed', payment_method = 'cancelled', closed_at = ?, updated_at = ?
+          WHERE table_id = ? AND status = 'open'`,
+    args: [now, now, tableId],
+  })
+  // Delete all orders (now all closed) and their items before removing the table
+  await client.execute({ sql: 'DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_id = ?)', args: [tableId] })
+  await client.execute({ sql: 'DELETE FROM orders WHERE table_id = ?', args: [tableId] })
+  await client.execute({ sql: 'DELETE FROM tables WHERE id = ?', args: [tableId] })
 }
 
 function mapTable(row: Record<string, unknown>): Table {

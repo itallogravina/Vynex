@@ -54,7 +54,7 @@ export function useAuthedFetch() {
         headers: {
           ...(options.headers ?? {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          'Content-Type': 'application/json',
+          ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         },
       })
     },

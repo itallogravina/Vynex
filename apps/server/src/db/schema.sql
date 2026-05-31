@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS orders (
   table_id TEXT NOT NULL,
   routing_mode TEXT NOT NULL CHECK(routing_mode IN ('manual', 'auto')),
   status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed')),
-  payment_method TEXT CHECK(payment_method IN ('cash', 'card')),
+  payment_method TEXT CHECK(payment_method IN ('cash', 'card', 'cancelled')),
   closed_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

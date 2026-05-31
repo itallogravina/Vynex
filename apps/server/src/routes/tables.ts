@@ -4,9 +4,11 @@ import {
   createTable,
   updateTable,
   deleteTable,
+  forceDeleteTable,
   getDefaultVenueId,
 } from '../db/queries'
 import { CreateTableRequest, UpdateTableRequest } from '@vynex/shared'
+import { requireRole } from '../middleware/auth'
 
 export async function registerTableRoutes(app: FastifyInstance): Promise<void> {
   // List all tables with their occupancy status
@@ -53,15 +55,29 @@ export async function registerTableRoutes(app: FastifyInstance): Promise<void> {
     }
   )
 
-  // Delete a table
+  // Delete a table — 409 with structured error if open orders exist
   app.delete<{ Params: { id: string } }>('/tables/:id', async (request, reply) => {
     const { id } = request.params
     const result = await deleteTable(id)
 
     if (!result.ok) {
-      return reply.status(409).send({ error: result.error })
+      return reply.status(409).send({
+        error: 'TABLE_HAS_OPEN_ORDERS',
+        open_orders: result.open_orders,
+      })
     }
 
     return reply.status(204).send()
   })
+
+  // Force-delete a table — cancels all open orders, then deletes; manager/owner only
+  app.delete<{ Params: { id: string } }>(
+    '/tables/:id/force',
+    { preHandler: requireRole('owner', 'manager') },
+    async (request, reply) => {
+      const { id } = request.params
+      await forceDeleteTable(id)
+      return reply.status(204).send()
+    }
+  )
 }

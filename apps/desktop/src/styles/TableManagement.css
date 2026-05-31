@@ -268,3 +268,30 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.modal-warning {
+  color: #555;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+
+.btn-delete-confirm {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  background: #e74c3c;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-delete-confirm:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+.btn-delete-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
