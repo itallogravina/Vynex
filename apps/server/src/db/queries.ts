@@ -12,6 +12,7 @@ import {
   OpenOrder,
   OrderRoutingMode,
   ItemStatus,
+  Priority,
   RoutingZone,
   User,
   Role,
@@ -141,15 +142,16 @@ export async function addOrderItem(
   menuItemId: string,
   quantity: number,
   notes?: string,
-  addedBy?: string
+  addedBy?: string,
+  priority: Priority = Priority.NORMAL
 ): Promise<OrderItem> {
   const client = getClient()
   const id = uuid()
   const now = new Date().toISOString()
 
   await client.execute({
-    sql: 'INSERT INTO order_items (id, order_id, menu_item_id, quantity, status, notes, added_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    args: [id, orderId, menuItemId, quantity, 'pending', notes ?? null, addedBy ?? null, now, now],
+    sql: 'INSERT INTO order_items (id, order_id, menu_item_id, quantity, status, priority, notes, added_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    args: [id, orderId, menuItemId, quantity, 'pending', priority, notes ?? null, addedBy ?? null, now, now],
   })
 
   return (await getOrderItem(id))!
@@ -198,6 +200,7 @@ function mapOrderItem(row: Record<string, unknown>): OrderItem {
     menu_item_id: row.menu_item_id as string,
     quantity: row.quantity as number,
     status: row.status as ItemStatus,
+    priority: (row.priority as Priority) ?? Priority.NORMAL,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -214,10 +217,10 @@ export async function getQueueByZone(routingZone: RoutingZone): Promise<QueueIte
   const client = getClient()
   const result = await client.execute({
     sql: `SELECT
-            oi.id, oi.order_id, oi.menu_item_id, oi.quantity, oi.status, oi.notes,
+            oi.id, oi.order_id, oi.menu_item_id, oi.quantity, oi.status, oi.priority, oi.notes,
             oi.created_at as oi_created_at, oi.updated_at as oi_updated_at,
             mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled,
-            mi.created_at as mi_created_at, mi.updated_at as mi_updated_at,
+            mi.eightysixed_at, mi.created_at as mi_created_at, mi.updated_at as mi_updated_at,
             o.id as o_id, o.table_id, o.routing_mode, o.status as o_status,
             o.payment_method, o.closed_at,
             o.created_at as o_created_at, o.updated_at as o_updated_at,
@@ -227,7 +230,10 @@ export async function getQueueByZone(routingZone: RoutingZone): Promise<QueueIte
           JOIN orders o ON oi.order_id = o.id
           JOIN tables t ON o.table_id = t.id
           WHERE mi.routing_zone = ? AND o.status = 'open'
-          ORDER BY oi.status, oi.created_at`,
+          ORDER BY
+            CASE oi.priority WHEN 'vip' THEN 0 WHEN 'urgent' THEN 1 ELSE 2 END,
+            oi.status,
+            oi.created_at`,
     args: [routingZone],
   })
 
@@ -238,6 +244,7 @@ export async function getQueueByZone(routingZone: RoutingZone): Promise<QueueIte
       menu_item_id: row.menu_item_id as string,
       quantity: row.quantity as number,
       status: row.status as ItemStatus,
+      priority: (row.priority as Priority) ?? Priority.NORMAL,
       created_at: row.oi_created_at as string,
       updated_at: row.oi_updated_at as string,
       menu_item: mapMenuItemFromRow(row),

@@ -337,6 +337,42 @@
   color: #333;
 }
 
+/* Priority picker */
+.priority-picker {
+  display: flex;
+  gap: 6px;
+}
+
+.priority-option {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f9f9f9;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.priority-option-normal.active {
+  background: #e8f5e9;
+  border-color: #27ae60;
+  color: #1e8449;
+}
+
+.priority-option-urgent.active {
+  background: #fff3e0;
+  border-color: #f39c12;
+  color: #d68910;
+}
+
+.priority-option-vip.active {
+  background: #fffde7;
+  border-color: #f1c40f;
+  color: #7d6608;
+}
+
 /* 86'd items */
 .menu-item-card.card-eightysixed {
   opacity: 0.5;

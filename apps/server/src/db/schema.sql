@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   menu_item_id TEXT NOT NULL,
   quantity INTEGER NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'preparing', 'ready', 'served', 'billed')),
+  priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('normal', 'urgent', 'vip')),
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

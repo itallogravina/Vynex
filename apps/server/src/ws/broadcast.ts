@@ -6,6 +6,7 @@ import {
   OrderClosedEvent,
   RoutingZone,
   ItemStatus,
+  Priority,
 } from '@vynex/shared'
 import { getQueueByZone } from '../db/queries'
 
@@ -60,6 +61,7 @@ export function broadcastItemAdded(
       menu_item_id: '',
       quantity,
       status: 'pending' as ItemStatus,
+      priority: Priority.NORMAL,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },

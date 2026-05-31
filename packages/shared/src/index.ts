@@ -26,6 +26,12 @@ export enum OrderRoutingMode {
   AUTO = 'auto',
 }
 
+export enum Priority {
+  NORMAL = 'normal',
+  URGENT = 'urgent',
+  VIP = 'vip',
+}
+
 // ============================================================================
 // DOMAIN MODELS
 // ============================================================================
@@ -57,6 +63,7 @@ export type OrderItem = {
   menu_item_id: string
   quantity: number
   status: ItemStatus
+  priority: Priority
   notes?: string
   added_by?: string
   created_at: string
@@ -123,7 +130,8 @@ export type CreateOrderResponse = Order
 export type AddOrderItemRequest = {
   menu_item_id: string
   quantity: number
-  notes?: string | undefined
+  notes?: string
+  priority?: Priority
 }
 
 export type AddOrderItemResponse = OrderItem

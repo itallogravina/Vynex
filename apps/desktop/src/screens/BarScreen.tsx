@@ -1,4 +1,4 @@
-import { RoutingZone, ItemStatus } from '@vynex/shared'
+import { RoutingZone, ItemStatus, Priority } from '@vynex/shared'
 import { useQueue } from '../hooks/useQueue'
 import '../styles/QueueScreen.css'
 
@@ -41,10 +41,20 @@ export default function BarScreen() {
         ) : (
           <div className="items-grid">
             {items.map(item => (
-              <div key={item.id} className={`queue-item item-status-${item.status}`}>
+              <div
+                key={item.id}
+                className={`queue-item item-status-${item.status} item-priority-${item.priority}`}
+              >
                 <div className="item-header">
                   <h3>{item.menu_item.name}</h3>
-                  <span className="quantity">×{item.quantity}</span>
+                  <div className="item-header-right">
+                    {item.priority !== Priority.NORMAL && (
+                      <span className={`priority-badge priority-${item.priority}`}>
+                        {item.priority.toUpperCase()}
+                      </span>
+                    )}
+                    <span className="quantity">×{item.quantity}</span>
+                  </div>
                 </div>
                 <div className="item-meta">
                   <p className="table-name">{item.order.table_name}</p>

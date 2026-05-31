@@ -4,6 +4,7 @@ import {
   OrderItem,
   MenuItem,
   OrderRoutingMode,
+  Priority,
   RoutingZone,
   AddOrderItemRequest,
 } from '@vynex/shared'
@@ -54,13 +55,15 @@ export function useOrder() {
   )
 
   const addItem = useCallback(
-    async (menu_item: MenuItem, quantity: number, notes?: string) => {
+    async (menu_item: MenuItem, quantity: number, notes?: string, priority?: Priority) => {
       if (!order) throw new Error('No order created')
       setLoading(true)
       setError(null)
 
       try {
-        const body: AddOrderItemRequest = { menu_item_id: menu_item.id, quantity, notes }
+        const body: AddOrderItemRequest = { menu_item_id: menu_item.id, quantity }
+        if (notes) body.notes = notes
+        if (priority) body.priority = priority
         const response = await fetch(`${serverUrl}/orders/${order.id}/items`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

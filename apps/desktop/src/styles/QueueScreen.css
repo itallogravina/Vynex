@@ -208,6 +208,44 @@
   background: #1f618d;
 }
 
+/* Priority badges */
+.item-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.priority-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.priority-urgent {
+  background: #f39c12;
+  color: white;
+}
+
+.priority-vip {
+  background: #f1c40f;
+  color: #7d6608;
+}
+
+/* Card accent for non-normal priorities (top border overlay) */
+.item-priority-urgent {
+  border-top: 3px solid #f39c12;
+}
+
+.item-priority-vip {
+  border-top: 3px solid #f1c40f;
+  background: #fffde7;
+}
+
 /* Kitchen screen specific */
 .kitchen-screen .screen-header {
   background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);

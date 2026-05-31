@@ -19,6 +19,7 @@ import {
   UpdateItemStatusRequest,
   CloseOrderRequest,
   ItemStatus,
+  Priority,
   RoutingZone,
 } from '@vynex/shared'
 import {
@@ -96,7 +97,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     '/orders/:id/items',
     async (request, reply) => {
       const { id } = request.params
-      const { menu_item_id, quantity, notes } = request.body
+      const { menu_item_id, quantity, notes, priority } = request.body
 
       const order = await getOrder(id)
       if (!order) {
@@ -108,7 +109,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(404).send({ error: 'Menu item not found' })
       }
 
-      const item = await addOrderItem(id, menu_item_id, quantity, notes)
+      const validPriorities = Object.values(Priority)
+      const resolvedPriority =
+        priority && validPriorities.includes(priority) ? priority : Priority.NORMAL
+
+      const item = await addOrderItem(id, menu_item_id, quantity, notes, undefined, resolvedPriority)
 
       if (order.routing_mode === 'auto') {
         const table = await getTable(order.table_id)

@@ -5,6 +5,7 @@ import {
   MenuItem,
   OrderRoutingMode,
   ItemStatus,
+  Priority,
   Order,
   OrderItem,
 } from '@vynex/shared'
@@ -143,10 +144,12 @@ export default function OrderScreen() {
     productId,
     qty,
     note,
+    priority,
   }: {
     productId: string
     qty: number
     note: string
+    priority: Priority
   }) => {
     if (!order) return
     const menuItem = menuItems.find(m => m.id === productId)
@@ -160,6 +163,7 @@ export default function OrderScreen() {
           menu_item_id: productId,
           quantity: qty,
           notes: note || undefined,
+          priority,
         }),
       })
 

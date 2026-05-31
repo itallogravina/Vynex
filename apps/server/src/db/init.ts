@@ -145,6 +145,15 @@ async function runMigrations(): Promise<void> {
       await client!.execute('ALTER TABLE menu_items ADD COLUMN eightysixed_at TEXT')
     }
   } catch { /* already exists */ }
+
+  // Add priority to order_items (M5 priority levels)
+  try {
+    const oiCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('order_items')`, args: [] })
+    const oiColNames = new Set(oiCols.rows.map(r => r.name as string))
+    if (!oiColNames.has('priority')) {
+      await client!.execute("ALTER TABLE order_items ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'")
+    }
+  } catch { /* already exists */ }
 }
 
 async function seedDefaultVenue(): Promise<void> {

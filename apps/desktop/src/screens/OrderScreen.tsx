@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Table, MenuItem, OrderRoutingMode, ItemStatus } from '@vynex/shared'
+import { Table, MenuItem, OrderRoutingMode, ItemStatus, Priority } from '@vynex/shared'
 import { useOrder } from '../hooks/useOrder'
 import '../styles/OrderScreen.css'
 
@@ -15,6 +15,7 @@ export function OrderScreen() {
 
   const [quantity, setQuantity] = useState(1)
   const [notes, setNotes] = useState('')
+  const [priority, setPriority] = useState<Priority>(Priority.NORMAL)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null)
 
@@ -59,9 +60,10 @@ export function OrderScreen() {
 
   const handleAddItem = async (menuItem: MenuItem) => {
     try {
-      await addItem(menuItem, quantity, notes || undefined)
+      await addItem(menuItem, quantity, notes || undefined, priority)
       setQuantity(1)
       setNotes('')
+      setPriority(Priority.NORMAL)
     } catch {
       // error shown via orderError
     }
@@ -204,6 +206,22 @@ export function OrderScreen() {
               value={quantity}
               onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
             />
+          </div>
+
+          <div className="form-group">
+            <label>Priority:</label>
+            <div className="priority-picker">
+              {([Priority.NORMAL, Priority.URGENT, Priority.VIP] as const).map(p => (
+                <button
+                  key={p}
+                  className={`priority-option priority-option-${p}${priority === p ? ' active' : ''}`}
+                  onClick={() => setPriority(p)}
+                  type="button"
+                >
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="form-group">
