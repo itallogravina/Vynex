@@ -70,6 +70,7 @@ export function broadcastItemAdded(
       price: 0,
       routing_zone,
       enabled: true,
+      eightysixed_at: null,
       created_at: '',
       updated_at: '',
     },

@@ -332,10 +332,37 @@ export async function toggleMenuItem(itemId: string): Promise<MenuItem> {
   return item
 }
 
+export async function eightySixMenuItem(itemId: string): Promise<MenuItem> {
+  const client = getClient()
+  const item = await getMenuItem(itemId)
+  if (!item) throw new Error('Item not found')
+
+  const now = new Date().toISOString()
+  // Toggle: already 86'd today → clear; otherwise → set to now
+  const newValue = item.eightysixed_at ? null : now
+
+  await client.execute({
+    sql: 'UPDATE menu_items SET eightysixed_at = ?, updated_at = ? WHERE id = ?',
+    args: [newValue, now, itemId],
+  })
+
+  await logMenuChange('menu_items', itemId, 'update', { eightysixed_at: newValue })
+  return (await getMenuItem(itemId))!
+}
+
 export async function deleteMenuItem(itemId: string): Promise<void> {
   const client = getClient()
   await logMenuChange('menu_items', itemId, 'delete', null)
   await client.execute({ sql: 'DELETE FROM menu_items WHERE id = ?', args: [itemId] })
+}
+
+function todayPrefix(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function resolveEightySixedAt(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'string') return null
+  return raw.startsWith(todayPrefix()) ? raw : null
 }
 
 function mapMenuItem(row: Record<string, unknown>): MenuItem {
@@ -346,6 +373,7 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
     price: row.price as number,
     routing_zone: row.routing_zone as RoutingZone,
     enabled: row.enabled === 1 || row.enabled === true,
+    eightysixed_at: resolveEightySixedAt(row.eightysixed_at),
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -359,6 +387,7 @@ function mapMenuItemFromRow(row: Record<string, unknown>): MenuItem {
     price: row.price as number,
     routing_zone: row.routing_zone as RoutingZone,
     enabled: row.enabled === 1 || row.enabled === true,
+    eightysixed_at: resolveEightySixedAt(row.eightysixed_at),
     created_at: row.mi_created_at as string,
     updated_at: (row.mi_updated_at as string) || '',
   }

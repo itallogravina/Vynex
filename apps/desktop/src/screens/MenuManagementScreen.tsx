@@ -192,6 +192,16 @@ export default function MenuManagementScreen() {
     }
   }
 
+  const handleEightySixItem = async (item: MenuItem) => {
+    try {
+      const res = await fetch(`${API_URL}/menu-items/${item.id}/eightysix`, { method: 'PATCH' })
+      if (!res.ok) throw new Error('Failed to update 86 status')
+      fetchCategories()
+    } catch (err) {
+      setOpError(err instanceof Error ? err.message : 'Failed to update 86 status')
+    }
+  }
+
   const handleDeleteItem = async (item: MenuItem) => {
     try {
       const res = await fetch(`${API_URL}/menu-items/${item.id}`, { method: 'DELETE' })
@@ -321,7 +331,10 @@ export default function MenuManagementScreen() {
                 ) : (
                   <div className="menu-items-list">
                     {selectedCat.items.map(item => (
-                      <div key={item.id} className={`menu-item-row ${item.enabled ? '' : 'item-disabled'}`}>
+                      <div
+                        key={item.id}
+                        className={`menu-item-row ${item.enabled ? '' : 'item-disabled'} ${item.eightysixed_at ? 'item-eightysixed' : ''}`}
+                      >
                         <div className="menu-item-info">
                           <span className="menu-item-name">{item.name}</span>
                           <span
@@ -330,9 +343,17 @@ export default function MenuManagementScreen() {
                           >
                             {ZONE_LABELS[item.routing_zone]}
                           </span>
+                          {item.eightysixed_at && <span className="badge-86">86'd</span>}
                         </div>
                         <span className="menu-item-price">R$ {item.price.toFixed(2)}</span>
                         <div className="menu-item-actions">
+                          <button
+                            className={`toggle-btn eightysix-btn ${item.eightysixed_at ? 'eightysixed' : ''}`}
+                            onClick={() => handleEightySixItem(item)}
+                            title={item.eightysixed_at ? 'Clear 86 — restore for today' : '86 — mark out of stock for today'}
+                          >
+                            {item.eightysixed_at ? 'Un-86' : '86'}
+                          </button>
                           <button
                             className={`toggle-btn ${item.enabled ? 'enabled' : 'disabled'}`}
                             onClick={() => handleToggleItem(item)}

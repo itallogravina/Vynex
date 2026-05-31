@@ -8,6 +8,7 @@ import {
   Order,
   OrderItem,
 } from '@vynex/shared'
+import QuickOrderPopover from '../components/QuickOrderPopover'
 
 const API_URL = 'http://localhost:3000'
 const WS_URL = 'ws://localhost:3000/ws'
@@ -27,8 +28,7 @@ export default function OrderScreen() {
 
   const [order, setOrder] = useState<Order | null>(null)
   const [orderItems, setOrderItems] = useState<OrderItemWithMenu[]>([])
-  const [quantity, setQuantity] = useState('1')
-  const [notes, setNotes] = useState('')
+  const [popoverItem, setPopoverItem] = useState<MenuItem | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
   const queueItemsRef = useRef<Map<string, any>>(new Map())
@@ -139,17 +139,27 @@ export default function OrderScreen() {
     }
   }
 
-  const handleAddItem = async (menuItem: MenuItem) => {
+  const handleAddItem = async ({
+    productId,
+    qty,
+    note,
+  }: {
+    productId: string
+    qty: number
+    note: string
+  }) => {
     if (!order) return
+    const menuItem = menuItems.find(m => m.id === productId)
+    if (!menuItem) return
 
     try {
       const res = await fetch(`${API_URL}/orders/${order.id}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          menu_item_id: menuItem.id,
-          quantity: parseInt(quantity),
-          notes: notes || undefined,
+          menu_item_id: productId,
+          quantity: qty,
+          notes: note || undefined,
         }),
       })
 
@@ -159,14 +169,7 @@ export default function OrderScreen() {
       }
 
       const newItem = (await res.json()) as OrderItem
-      const itemWithMenu: OrderItemWithMenu = {
-        ...newItem,
-        menu_item: menuItem,
-      }
-
-      setOrderItems(prev => [...prev, itemWithMenu])
-      setQuantity('1')
-      setNotes('')
+      setOrderItems(prev => [...prev, { ...newItem, menu_item: menuItem }])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add item')
     }
@@ -294,6 +297,12 @@ export default function OrderScreen() {
         <Text style={styles.orderInfo}>Mode: {order.routing_mode.toUpperCase()}</Text>
       </View>
 
+      <QuickOrderPopover
+        item={popoverItem}
+        onClose={() => setPopoverItem(null)}
+        onAddItem={handleAddItem}
+      />
+
       <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Add Items</Text>
@@ -310,12 +319,24 @@ export default function OrderScreen() {
             keyExtractor={item => item.id}
             renderItem={({ item: menuItem }) => (
               <TouchableOpacity
-                style={styles.menuItemButton}
-                onPress={() => handleAddItem(menuItem)}
+                style={[
+                  styles.menuItemButton,
+                  (!menuItem.enabled || !!menuItem.eightysixed_at) && styles.menuItemDisabled,
+                ]}
+                onPress={() => menuItem.enabled && !menuItem.eightysixed_at && setPopoverItem(menuItem)}
               >
                 <View style={styles.menuItemContent}>
-                  <Text style={styles.menuItemName}>{menuItem.name}</Text>
-                  <Text style={styles.menuItemPrice}>${menuItem.price.toFixed(2)}</Text>
+                  <Text style={[styles.menuItemName, !!menuItem.eightysixed_at && styles.menuItemStruck]}>
+                    {menuItem.name}
+                  </Text>
+                  <View style={styles.menuItemRight}>
+                    {menuItem.eightysixed_at && (
+                      <View style={styles.badge86}>
+                        <Text style={styles.badge86Text}>86'd</Text>
+                      </View>
+                    )}
+                    <Text style={styles.menuItemPrice}>R$ {menuItem.price.toFixed(2)}</Text>
+                  </View>
                 </View>
                 <Text style={styles.menuItemZone}>{menuItem.routing_zone}</Text>
               </TouchableOpacity>
@@ -526,21 +547,46 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 8,
   },
+  menuItemDisabled: {
+    opacity: 0.4,
+  },
   menuItemContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'center',
     marginBottom: 6,
   },
   menuItemName: {
     fontWeight: '600',
     color: '#333',
     fontSize: 14,
+    flex: 1,
+  },
+  menuItemStruck: {
+    color: '#999',
+    textDecorationLine: 'line-through',
+  },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   menuItemPrice: {
     color: '#3b82f6',
     fontWeight: '600',
     fontSize: 14,
+  },
+  badge86: {
+    backgroundColor: '#e74c3c',
+    borderRadius: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  badge86Text: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   menuItemZone: {
     fontSize: 12,

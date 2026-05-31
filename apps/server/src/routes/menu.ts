@@ -1,14 +1,16 @@
 import { FastifyInstance } from 'fastify'
 import {
   listCategoriesWithItems,
+  listMenuItems,
+  listAllMenuItems,
   createCategory,
   deleteCategory,
   createMenuItem,
   updateMenuItem,
   toggleMenuItem,
+  eightySixMenuItem,
   deleteMenuItem,
   getDefaultVenueId,
-  listAllMenuItems,
 } from '../db/queries'
 import { CreateCategoryRequest, CreateMenuItemRequest, UpdateMenuItemRequest, RoutingZone } from '@vynex/shared'
 
@@ -16,6 +18,11 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
   // List all categories with their menu items
   app.get('/categories', async () => {
     return listCategoriesWithItems()
+  })
+
+  // List enabled menu items — used by order screens
+  app.get('/menu-items', async () => {
+    return listMenuItems()
   })
 
   // List all menu items (including disabled) — for admin use
@@ -93,6 +100,13 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
   app.patch<{ Params: { id: string } }>('/menu-items/:id/toggle', async (request, reply) => {
     const { id } = request.params
     const item = await toggleMenuItem(id)
+    return reply.send(item)
+  })
+
+  // Toggle 86'd status — clears automatically at midnight via server-side day check
+  app.patch<{ Params: { id: string } }>('/menu-items/:id/eightysix', async (request, reply) => {
+    const { id } = request.params
+    const item = await eightySixMenuItem(id)
     return reply.send(item)
   })
 

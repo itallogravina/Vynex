@@ -37,6 +37,7 @@ export type MenuItem = {
   price: number
   routing_zone: RoutingZone
   enabled: boolean
+  eightysixed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -67,7 +68,7 @@ export type Order = {
   table_id: string
   routing_mode: OrderRoutingMode
   status: 'open' | 'closed'
-  payment_method?: 'cash' | 'card'
+  payment_method?: 'cash' | 'card' | 'cancelled'
   closed_at?: string
   opened_by?: string
   created_at: string

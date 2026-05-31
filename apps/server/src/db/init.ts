@@ -136,6 +136,15 @@ async function runMigrations(): Promise<void> {
       await client!.execute('ALTER TABLE order_items ADD COLUMN added_by TEXT')
     }
   } catch { /* already exists */ }
+
+  // Add eightysixed_at to menu_items (M5 86'd items)
+  try {
+    const miCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('menu_items')`, args: [] })
+    const miColNames = new Set(miCols.rows.map(r => r.name as string))
+    if (!miColNames.has('eightysixed_at')) {
+      await client!.execute('ALTER TABLE menu_items ADD COLUMN eightysixed_at TEXT')
+    }
+  } catch { /* already exists */ }
 }
 
 async function seedDefaultVenue(): Promise<void> {

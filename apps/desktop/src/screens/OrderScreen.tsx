@@ -159,10 +159,16 @@ export function OrderScreen() {
 
           <div className="menu-items">
             {filteredItems.map(item => (
-              <div key={item.id} className="menu-item-card">
+              <div
+                key={item.id}
+                className={`menu-item-card${item.eightysixed_at ? ' card-eightysixed' : ''}`}
+              >
                 <div className="item-header">
-                  <span className="item-name">{item.name}</span>
-                  <span className="item-price">${item.price.toFixed(2)}</span>
+                  <span className="item-name">
+                    {item.name}
+                    {item.eightysixed_at && <span className="item-badge-86">86'd</span>}
+                  </span>
+                  <span className="item-price">R$ {item.price.toFixed(2)}</span>
                 </div>
                 <span className="item-zone">{item.routing_zone}</span>
               </div>
@@ -183,8 +189,8 @@ export function OrderScreen() {
             >
               <option value="">Select item to add</option>
               {menuItems.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.name} (${item.price.toFixed(2)})
+                <option key={item.id} value={item.id} disabled={!!item.eightysixed_at}>
+                  {item.name} — R$ {item.price.toFixed(2)}{item.eightysixed_at ? ' (86\'d)' : ''}
                 </option>
               ))}
             </select>
@@ -212,12 +218,12 @@ export function OrderScreen() {
 
           <button
             onClick={() => {
-              if (selectedMenuItem) {
+              if (selectedMenuItem && !selectedMenuItem.eightysixed_at) {
                 handleAddItem(selectedMenuItem)
                 setSelectedMenuItem(null)
               }
             }}
-            disabled={!selectedMenuItem}
+            disabled={!selectedMenuItem || !!selectedMenuItem.eightysixed_at}
             className="add-button"
           >
             Add to Order
