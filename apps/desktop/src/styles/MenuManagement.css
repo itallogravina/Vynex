@@ -318,3 +318,15 @@
   background: #e8f5e9;
   color: #27ae60;
 }
+
+.badge-prep-time {
+  display: inline-block;
+  padding: 1px 5px;
+  background: #e3f2fd;
+  color: #1565c0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}

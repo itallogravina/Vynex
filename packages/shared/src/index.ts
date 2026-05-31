@@ -44,6 +44,7 @@ export type MenuItem = {
   routing_zone: RoutingZone
   enabled: boolean
   eightysixed_at: string | null
+  prep_time_seconds: number | null
   created_at: string
   updated_at: string
 }

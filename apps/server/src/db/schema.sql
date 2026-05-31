@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
   routing_zone TEXT NOT NULL CHECK(routing_zone IN ('kitchen', 'bar', 'cashier', 'table')),
   enabled INTEGER NOT NULL DEFAULT 1,
   eightysixed_at TEXT,
+  prep_time_seconds INTEGER,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (category_id) REFERENCES categories(id)

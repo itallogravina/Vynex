@@ -154,6 +154,15 @@ async function runMigrations(): Promise<void> {
       await client!.execute("ALTER TABLE order_items ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'")
     }
   } catch { /* already exists */ }
+
+  // Add prep_time_seconds to menu_items (M5 prep time alerts)
+  try {
+    const miCols2 = await client!.execute({ sql: `SELECT name FROM pragma_table_info('menu_items')`, args: [] })
+    const miColNames2 = new Set(miCols2.rows.map(r => r.name as string))
+    if (!miColNames2.has('prep_time_seconds')) {
+      await client!.execute('ALTER TABLE menu_items ADD COLUMN prep_time_seconds INTEGER')
+    }
+  } catch { /* already exists */ }
 }
 
 async function seedDefaultVenue(): Promise<void> {

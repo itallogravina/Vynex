@@ -246,6 +246,43 @@
   background: #fffde7;
 }
 
+/* Elapsed time timer */
+.elapsed-timer {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #95a5a6;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+.elapsed-late {
+  color: #e74c3c;
+}
+
+.elapsed-late-badge {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  background: #e74c3c;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: 3px;
+  text-transform: uppercase;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Pulsing red border when item is past its prep time */
+.item-delay-alert {
+  border-left-color: #e74c3c !important;
+  animation: delay-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes delay-pulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+  50% { box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.3), 0 2px 8px rgba(0, 0, 0, 0.1); }
+}
+
 /* Kitchen screen specific */
 .kitchen-screen .screen-header {
   background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);

@@ -9,6 +9,7 @@ import {
   updateMenuItem,
   toggleMenuItem,
   eightySixMenuItem,
+  setPrepTime,
   deleteMenuItem,
   getDefaultVenueId,
 } from '../db/queries'
@@ -109,6 +110,20 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
     const item = await eightySixMenuItem(id)
     return reply.send(item)
   })
+
+  // Set or clear prep time (seconds) for a menu item
+  app.patch<{ Params: { id: string }; Body: { seconds: number | null } }>(
+    '/menu-items/:id/prep-time',
+    async (request, reply) => {
+      const { id } = request.params
+      const { seconds } = request.body
+      if (seconds !== null && (typeof seconds !== 'number' || seconds < 0)) {
+        return reply.status(400).send({ error: 'seconds must be a non-negative number or null' })
+      }
+      const item = await setPrepTime(id, seconds ?? null)
+      return reply.send(item)
+    }
+  )
 
   // Delete a menu item
   app.delete<{ Params: { id: string } }>('/menu-items/:id', async (request, reply) => {

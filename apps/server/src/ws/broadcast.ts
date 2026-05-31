@@ -73,6 +73,7 @@ export function broadcastItemAdded(
       routing_zone,
       enabled: true,
       eightysixed_at: null,
+      prep_time_seconds: null,
       created_at: '',
       updated_at: '',
     },

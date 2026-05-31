@@ -19,7 +19,7 @@ const ZONE_COLORS: Record<string, string> = {
   table: '#2980b9',
 }
 
-type ItemForm = { name: string; price: string; routing_zone: RoutingZone }
+type ItemForm = { name: string; price: string; routing_zone: RoutingZone; prep_time_minutes: string }
 type CatForm = { name: string; routing_zone: RoutingZone }
 type EditItem = { id: string } & ItemForm
 
@@ -35,6 +35,7 @@ export default function MenuManagementScreen() {
     name: '',
     price: '',
     routing_zone: RoutingZone.KITCHEN,
+    prep_time_minutes: '',
   })
   const [savingItem, setSavingItem] = useState(false)
 
@@ -121,18 +122,21 @@ export default function MenuManagementScreen() {
       name: '',
       price: '',
       routing_zone: (selectedCat?.routing_zone as RoutingZone) ?? RoutingZone.KITCHEN,
+      prep_time_minutes: '',
     })
     setShowItemForm(true)
   }
 
   const openEditItem = (item: MenuItem) => {
+    const ptm = item.prep_time_seconds !== null ? String(Math.round(item.prep_time_seconds / 60)) : ''
     setEditItem({
       id: item.id,
       name: item.name,
       price: String(item.price),
       routing_zone: item.routing_zone,
+      prep_time_minutes: ptm,
     })
-    setItemForm({ name: item.name, price: String(item.price), routing_zone: item.routing_zone })
+    setItemForm({ name: item.name, price: String(item.price), routing_zone: item.routing_zone, prep_time_minutes: ptm })
     setShowItemForm(true)
   }
 
@@ -145,34 +149,47 @@ export default function MenuManagementScreen() {
     const price = parseFloat(itemForm.price)
     if (!itemForm.name.trim() || isNaN(price) || price < 0) return
 
+    const ptMin = itemForm.prep_time_minutes.trim()
+    const ptSeconds: number | null = ptMin === '' ? null : Math.max(0, parseInt(ptMin, 10)) * 60
+
     setSavingItem(true)
     setOpError(null)
     try {
-      const res = editItem
-        ? await fetch(`${API_URL}/menu-items/${editItem.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: itemForm.name.trim(),
-              price,
-              routing_zone: itemForm.routing_zone,
-            }),
-          })
-        : await fetch(`${API_URL}/menu-items`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              category_id: selectedCatId,
-              name: itemForm.name.trim(),
-              price,
-              routing_zone: itemForm.routing_zone,
-            }),
-          })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to save item')
+      let savedId: string
+      if (editItem) {
+        const res = await fetch(`${API_URL}/menu-items/${editItem.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: itemForm.name.trim(), price, routing_zone: itemForm.routing_zone }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to save item')
+        }
+        savedId = editItem.id
+      } else {
+        const res = await fetch(`${API_URL}/menu-items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category_id: selectedCatId, name: itemForm.name.trim(), price, routing_zone: itemForm.routing_zone }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to save item')
+        }
+        const created = await res.json()
+        savedId = created.id
       }
+
+      // Update prep time whenever editing, or when creating with a value set
+      if (editItem || ptSeconds !== null) {
+        await fetch(`${API_URL}/menu-items/${savedId}/prep-time`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seconds: ptSeconds }),
+        })
+      }
+
       closeItemForm()
       fetchCategories()
     } catch (err) {
@@ -344,6 +361,9 @@ export default function MenuManagementScreen() {
                             {ZONE_LABELS[item.routing_zone]}
                           </span>
                           {item.eightysixed_at && <span className="badge-86">86'd</span>}
+                          {item.prep_time_seconds !== null && (
+                            <span className="badge-prep-time">⏱ {Math.round(item.prep_time_seconds / 60)}m</span>
+                          )}
                         </div>
                         <span className="menu-item-price">R$ {item.price.toFixed(2)}</span>
                         <div className="menu-item-actions">
@@ -421,6 +441,18 @@ export default function MenuManagementScreen() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="modal-field">
+              <label>Prep Time (min) — optional</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={itemForm.prep_time_minutes}
+                placeholder="Leave blank for no limit"
+                onChange={e => setItemForm(f => ({ ...f, prep_time_minutes: e.target.value }))}
+              />
             </div>
 
             <div className="modal-actions">

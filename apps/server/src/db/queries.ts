@@ -179,7 +179,7 @@ export async function updateOrderItemStatus(itemId: string, status: ItemStatus):
 export async function getOrderItems(orderId: string): Promise<(OrderItem & { menu_item: MenuItem })[]> {
   const client = getClient()
   const result = await client.execute({
-    sql: `SELECT oi.*, mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled, mi.created_at as mi_created_at, mi.updated_at as mi_updated_at
+    sql: `SELECT oi.*, mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled, mi.eightysixed_at, mi.prep_time_seconds, mi.created_at as mi_created_at, mi.updated_at as mi_updated_at
           FROM order_items oi
           JOIN menu_items mi ON oi.menu_item_id = mi.id
           WHERE oi.order_id = ?
@@ -220,7 +220,7 @@ export async function getQueueByZone(routingZone: RoutingZone): Promise<QueueIte
             oi.id, oi.order_id, oi.menu_item_id, oi.quantity, oi.status, oi.priority, oi.notes,
             oi.created_at as oi_created_at, oi.updated_at as oi_updated_at,
             mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone, mi.enabled,
-            mi.eightysixed_at, mi.created_at as mi_created_at, mi.updated_at as mi_updated_at,
+            mi.eightysixed_at, mi.prep_time_seconds, mi.created_at as mi_created_at, mi.updated_at as mi_updated_at,
             o.id as o_id, o.table_id, o.routing_mode, o.status as o_status,
             o.payment_method, o.closed_at,
             o.created_at as o_created_at, o.updated_at as o_updated_at,
@@ -357,6 +357,17 @@ export async function eightySixMenuItem(itemId: string): Promise<MenuItem> {
   return (await getMenuItem(itemId))!
 }
 
+export async function setPrepTime(itemId: string, seconds: number | null): Promise<MenuItem> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: 'UPDATE menu_items SET prep_time_seconds = ?, updated_at = ? WHERE id = ?',
+    args: [seconds, now, itemId],
+  })
+  await logMenuChange('menu_items', itemId, 'update', { prep_time_seconds: seconds })
+  return (await getMenuItem(itemId))!
+}
+
 export async function deleteMenuItem(itemId: string): Promise<void> {
   const client = getClient()
   await logMenuChange('menu_items', itemId, 'delete', null)
@@ -381,6 +392,7 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
     routing_zone: row.routing_zone as RoutingZone,
     enabled: row.enabled === 1 || row.enabled === true,
     eightysixed_at: resolveEightySixedAt(row.eightysixed_at),
+    prep_time_seconds: (row.prep_time_seconds as number | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -395,6 +407,7 @@ function mapMenuItemFromRow(row: Record<string, unknown>): MenuItem {
     routing_zone: row.routing_zone as RoutingZone,
     enabled: row.enabled === 1 || row.enabled === true,
     eightysixed_at: resolveEightySixedAt(row.eightysixed_at),
+    prep_time_seconds: (row.prep_time_seconds as number | null) ?? null,
     created_at: row.mi_created_at as string,
     updated_at: (row.mi_updated_at as string) || '',
   }
