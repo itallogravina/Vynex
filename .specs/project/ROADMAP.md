@@ -151,7 +151,7 @@ order traceability, and financial visibility for owners and managers.
 
 ---
 
-## M5 — Operations & UX 🔜 PLANNED
+## M5 — Operations & UX 🔄 IN PROGRESS
 
 **Goal:** Make day-to-day operations smoother for every role — resilient ordering under network failures, richer table management, smarter production queues, and the UX polish that turns a usable system into one staff actually enjoy using.
 
@@ -172,6 +172,12 @@ order traceability, and financial visibility for owners and managers.
 - Visual indicator showing queued (unsynced) order count
 
 ### Table Management
+
+**Force-Delete Table** ✅
+
+- Manager/owner can delete a table even when it has open orders
+- All open orders are cancelled (`payment_method = 'cancelled'`) before deletion
+- Cascades through order items; leaves no orphaned records
 
 **Table Transfer**
 
@@ -405,3 +411,4 @@ order traceability, and financial visibility for owners and managers.
 - Hardware integrations (kitchen display systems, barcode scanners)
 - Server hardening (rate limiting, input sanitization — P3/P4 security audit)
 - Duplicate table name validation (server-side constraint + UI feedback)
+- When generating a user, it cannot be generated with PINs or sequential passwords.
