@@ -103,6 +103,18 @@ Offline-first. Real-time order routing. Single-operator deployable.
 - Period comparison (this week vs. last, this month vs. last)
 - Products never ordered in a given period
 
+**Event Mode**
+- Venue-level event mode toggle in settings (on/off per event)
+- Customer registration at entry: name, phone, CPF
+- Wristband / tab number assignment at registration
+- Order identification configurable per event: wristband number, last 4 CPF digits, or QR code scan
+- Full consumption tab per customer; cashier closes by wristband number or CPF lookup
+
+**Consumption & Bar Control**
+- Named areas/bars (`venue_areas` table with `has_cash_control` flag); each area gets its own independent closing report
+- Bar cash control is optional and scoped per event (not venue-wide)
+- Personal consumption linked to table orders via CPF tag; bartenders tag items to a customer at pour time; cashier and waiter screens show per-customer summary; closing supports charging by CPF
+
 **Printing**
 - ESC/POS thermal printer support; configurable per routing zone
 - Printed customer receipt at order close
