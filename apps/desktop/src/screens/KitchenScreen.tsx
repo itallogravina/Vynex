@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { RoutingZone, ItemStatus, Priority } from '@vynex/shared'
 import { useQueue } from '../hooks/useQueue'
+import { useServerUrl } from '../context/ServerUrlContext'
 import '../styles/QueueScreen.css'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 function useTick(ms = 1000) {
   const [tick, setTick] = useState(() => Date.now())
@@ -20,13 +19,34 @@ function fmtElapsed(sec: number) {
   return `${m}:${s}`
 }
 
+function fmtDateTime(iso: string) {
+  const d = new Date(iso)
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`
+}
+
 export default function KitchenScreen() {
   const now = useTick()
+  const { serverUrl } = useServerUrl()
   const { items, isConnected, error } = useQueue(RoutingZone.KITCHEN)
+  const [completedOpen, setCompletedOpen] = useState(false)
+
+  const activeItems = items.filter(
+    i => i.status === ItemStatus.PENDING || i.status === ItemStatus.PREPARING
+  )
+  const completedItems = items.filter(
+    i =>
+      (i.status === ItemStatus.READY || i.status === ItemStatus.SERVED) &&
+      new Date().getTime() - new Date(i.updated_at).getTime() < 12 * 60 * 60 * 1000
+  )
 
   const updateStatus = async (itemId: string, orderId: string, newStatus: ItemStatus) => {
     try {
-      const response = await fetch(`${API_URL}/orders/${orderId}/items/${itemId}`, {
+      const response = await fetch(`${serverUrl}/orders/${orderId}/items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -53,14 +73,13 @@ export default function KitchenScreen() {
       {error && <div className="error-banner">{error}</div>}
 
       <div className="queue-container">
-        {items.length === 0 ? (
+        {activeItems.length === 0 ? (
           <div className="empty-queue">No items in queue</div>
         ) : (
           <div className="items-grid">
-            {items.map(item => {
-              const active = item.status === ItemStatus.PENDING || item.status === ItemStatus.PREPARING
-              const elapsedSec = active ? Math.floor((now - new Date(item.created_at).getTime()) / 1000) : 0
-              const isLate = active && item.menu_item.prep_time_seconds !== null && elapsedSec > item.menu_item.prep_time_seconds
+            {activeItems.map(item => {
+              const elapsedSec = Math.floor((now - new Date(item.created_at).getTime()) / 1000)
+              const isLate = item.menu_item.prep_time_seconds !== null && elapsedSec > item.menu_item.prep_time_seconds
               return (
                 <div
                   key={item.id}
@@ -74,22 +93,21 @@ export default function KitchenScreen() {
                           {item.priority.toUpperCase()}
                         </span>
                       )}
-                      {active && (
-                        <span className={`elapsed-timer${isLate ? ' elapsed-late' : ''}`}>
-                          {fmtElapsed(elapsedSec)}
-                          {isLate && <span className="elapsed-late-badge">LATE</span>}
-                        </span>
-                      )}
+                      <span className={`elapsed-timer${isLate ? ' elapsed-late' : ''}`}>
+                        {fmtElapsed(elapsedSec)}
+                        {isLate && <span className="elapsed-late-badge">LATE</span>}
+                      </span>
                       <span className="quantity">×{item.quantity}</span>
                     </div>
                   </div>
                   <div className="item-meta">
                     <p className="table-name">{item.order.table_name}</p>
                     <p className="status-badge">{item.status.toUpperCase()}</p>
+                    <p className="item-timestamp">{fmtDateTime(item.created_at)}</p>
                   </div>
                   {item.notes && <p className="item-notes">{item.notes}</p>}
                   <div className="item-actions">
-                    {item.status === 'pending' && (
+                    {item.status === ItemStatus.PENDING && (
                       <button
                         className="btn btn-primary"
                         onClick={() => updateStatus(item.id, item.order_id, ItemStatus.PREPARING)}
@@ -97,7 +115,7 @@ export default function KitchenScreen() {
                         Start Cooking
                       </button>
                     )}
-                    {item.status === 'preparing' && (
+                    {item.status === ItemStatus.PREPARING && (
                       <button
                         className="btn btn-success"
                         onClick={() => updateStatus(item.id, item.order_id, ItemStatus.READY)}
@@ -109,6 +127,35 @@ export default function KitchenScreen() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {completedItems.length > 0 && (
+          <div className="completed-section">
+            <button
+              className="completed-toggle"
+              onClick={() => setCompletedOpen(o => !o)}
+            >
+              {completedOpen ? '▲' : '▼'} Completed this shift ({completedItems.length})
+            </button>
+            {completedOpen && (
+              <div className="completed-grid">
+                {completedItems.map(item => (
+                  <div key={item.id} className={`queue-item item-status-${item.status} item-priority-${item.priority}`}>
+                    <div className="item-header">
+                      <h3>{item.menu_item.name}</h3>
+                      <span className="quantity">×{item.quantity}</span>
+                    </div>
+                    <div className="item-meta">
+                      <p className="table-name">{item.order.table_name}</p>
+                      <p className="status-badge">{item.status.toUpperCase()}</p>
+                      <p className="item-timestamp">{fmtDateTime(item.created_at)}</p>
+                    </div>
+                    {item.notes && <p className="item-notes">{item.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

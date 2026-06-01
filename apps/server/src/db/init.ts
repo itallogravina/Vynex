@@ -281,6 +281,14 @@ async function runMigrations(): Promise<void> {
       )
     `)
   } catch { /* already exists */ }
+
+  // M6: split_group_id on orders (groups split bills on cashier screen)
+  try {
+    const ordCols2 = await client!.execute({ sql: `SELECT name FROM pragma_table_info('orders')`, args: [] })
+    if (!ordCols2.rows.some(r => r.name === 'split_group_id')) {
+      await client!.execute('ALTER TABLE orders ADD COLUMN split_group_id TEXT')
+    }
+  } catch { /* already exists */ }
 }
 
 async function seedDefaultVenue(): Promise<void> {

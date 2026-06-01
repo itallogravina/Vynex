@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { RoutingZone, ItemStatus, OpenOrder } from '@vynex/shared'
+import { RoutingZone, ItemStatus, OpenOrder, OrderItem, MenuItem } from '@vynex/shared'
 import type { CashierClosingSummary } from '@vynex/shared'
 import { useQueue } from '../hooks/useQueue'
 import { useTranslation } from '../context/I18nContext'
@@ -17,7 +17,7 @@ export default function CashierScreen() {
   const [tab, setTab] = useState<Tab>('queue')
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([])
   const [loadingBills, setLoadingBills] = useState(false)
-  const [closingId, setClosingId] = useState<string | null>(null)
+  const [closingTableId, setClosingTableId] = useState<string | null>(null)
   const [billsError, setBillsError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const wsRef = useRef<WebSocket | null>(null)
@@ -75,20 +75,22 @@ export default function CashierScreen() {
     return () => ws.close()
   }, [])
 
-  const handleClose = async (orderId: string, paymentMethod: 'cash' | 'card') => {
-    setClosingId(orderId)
+  const handleCloseTable = async (tableId: string, orderIds: string[], paymentMethod: 'cash' | 'card') => {
+    setClosingTableId(tableId)
     try {
-      const res = await fetch(`${API_URL}/orders/${orderId}/close`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payment_method: paymentMethod }),
-      })
-      if (!res.ok) throw new Error('Failed to close order')
+      for (const orderId of orderIds) {
+        const res = await fetch(`${API_URL}/orders/${orderId}/close`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payment_method: paymentMethod }),
+        })
+        if (!res.ok) throw new Error('Failed to close order')
+      }
       setRefreshKey(k => k + 1)
     } catch (err) {
-      console.error('Error closing order:', err)
+      console.error('Error closing table orders:', err)
     } finally {
-      setClosingId(null)
+      setClosingTableId(null)
     }
   }
 
@@ -131,7 +133,7 @@ export default function CashierScreen() {
             >
               {id === 'queue' ? 'Fila' : id === 'bills' ? t('cashier.openOrders') : t('cashier.closeDay')}
               {id === 'bills' && openOrders.length > 0 && tab !== 'bills' && (
-                <span className="tab-badge">{openOrders.length}</span>
+                <span className="tab-badge">{new Set(openOrders.map(o => o.table_id)).size}</span>
               )}
             </button>
           ))}
@@ -193,40 +195,95 @@ export default function CashierScreen() {
             <div className="empty-queue">{t('common.loading')}</div>
           ) : openOrders.length === 0 ? (
             <div className="empty-queue">{t('cashier.noOpenOrders')}</div>
-          ) : (
-            <div className="bills-grid">
-              {openOrders.map(order => (
-                <div key={order.id} className="bill-card">
-                  <div className="bill-header">
-                    <h2 className="bill-table">{order.table_name}</h2>
-                    <span className="bill-time">
-                      {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <div className="bill-items">
-                    {order.items.map(item => (
-                      <div key={item.id} className="bill-item-row">
-                        <span className="bill-item-name">{item.quantity}× {item.menu_item.name}</span>
-                        <span className="bill-item-price">R$ {(item.quantity * item.menu_item.price).toFixed(2)}</span>
+          ) : (() => {
+            type BillItem = OrderItem & { menu_item: MenuItem }
+            type SplitSection = { key: string; items: BillItem[]; subtotal: number }
+            type TableGroup = { table_id: string; table_name: string; orderIds: string[]; allItems: BillItem[]; total: number; hasSplits: boolean; splits: SplitSection[]; openedAt: string }
+
+            const tableMap: Record<string, TableGroup> = {}
+            for (const order of openOrders) {
+              if (!tableMap[order.table_id]) {
+                tableMap[order.table_id] = { table_id: order.table_id, table_name: order.table_name, orderIds: [], allItems: [], total: 0, hasSplits: false, splits: [], openedAt: order.created_at }
+              }
+              const tg = tableMap[order.table_id]!
+              tg.orderIds.push(order.id)
+              tg.total += order.total
+              tg.allItems.push(...order.items)
+              if (order.split_group_id) tg.hasSplits = true
+              if (order.created_at < tg.openedAt) tg.openedAt = order.created_at
+            }
+            const tableGroups = Object.values(tableMap)
+            for (const tg of tableGroups) {
+              if (tg.hasSplits) {
+                const splitMap: Record<string, SplitSection> = {}
+                for (const order of openOrders.filter(o => o.table_id === tg.table_id)) {
+                  const key = order.split_group_id ?? order.id
+                  if (!splitMap[key]) splitMap[key] = { key, items: [], subtotal: 0 }
+                  splitMap[key].items.push(...order.items)
+                  splitMap[key].subtotal += order.total
+                }
+                tg.splits = Object.values(splitMap)
+              }
+            }
+
+            return (
+              <div className="bills-grid">
+                {tableGroups.map(tg => (
+                  <div key={tg.table_id} className="bill-card">
+                    <div className="bill-header">
+                      <h2 className="bill-table">{tg.table_name}</h2>
+                      <span className="bill-time">
+                        {new Date(tg.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    {tg.hasSplits ? (
+                      tg.splits.map((split, idx) => (
+                        <div key={split.key} className="bill-split-section">
+                          {idx > 0 && <div className="bill-split-divider" />}
+                          <div className="bill-split-label">Conta {idx + 1}</div>
+                          <div className="bill-items">
+                            {split.items.map(item => (
+                              <div key={item.id} className="bill-item-row">
+                                <span className="bill-item-name">{item.quantity}× {item.menu_item.name}</span>
+                                <span className="bill-item-price">R$ {(item.quantity * item.menu_item.price).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="bill-subtotal-row">
+                            <span>Subtotal</span>
+                            <span>R$ {split.subtotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="bill-items">
+                        {tg.allItems.map(item => (
+                          <div key={item.id} className="bill-item-row">
+                            <span className="bill-item-name">{item.quantity}× {item.menu_item.name}</span>
+                            <span className="bill-item-price">R$ {(item.quantity * item.menu_item.price).toFixed(2)}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+
+                    <div className="bill-total-row">
+                      <span>{t('common.total')}</span>
+                      <span className="bill-total-amount">R$ {tg.total.toFixed(2)}</span>
+                    </div>
+                    <div className="bill-actions">
+                      <button className="btn btn-cash" disabled={closingTableId === tg.table_id} onClick={() => handleCloseTable(tg.table_id, tg.orderIds, 'cash')}>
+                        {closingTableId === tg.table_id ? t('cashier.closing') : t('cashier.cash')}
+                      </button>
+                      <button className="btn btn-card" disabled={closingTableId === tg.table_id} onClick={() => handleCloseTable(tg.table_id, tg.orderIds, 'card')}>
+                        {closingTableId === tg.table_id ? t('cashier.closing') : t('cashier.card')}
+                      </button>
+                    </div>
                   </div>
-                  <div className="bill-total-row">
-                    <span>{t('common.total')}</span>
-                    <span className="bill-total-amount">R$ {order.total.toFixed(2)}</span>
-                  </div>
-                  <div className="bill-actions">
-                    <button className="btn btn-cash" disabled={closingId === order.id} onClick={() => handleClose(order.id, 'cash')}>
-                      {closingId === order.id ? t('cashier.closing') : t('cashier.cash')}
-                    </button>
-                    <button className="btn btn-card" disabled={closingId === order.id} onClick={() => handleClose(order.id, 'card')}>
-                      {closingId === order.id ? t('cashier.closing') : t('cashier.card')}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )
+          })()}
         </div>
       )}
 

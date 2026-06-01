@@ -297,3 +297,33 @@
 .cashier-screen .screen-header {
   background: linear-gradient(135deg, #16a085 0%, #117a65 100%);
 }
+
+/* Completed today section */
+.completed-section {
+  margin-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1rem;
+}
+
+.completed-toggle {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: inherit;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-bottom: 0.75rem;
+}
+
+.completed-toggle:hover {
+  opacity: 1;
+}
+
+.completed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  opacity: 0.7;
+}

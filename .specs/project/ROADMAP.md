@@ -1,7 +1,7 @@
 # Roadmap
 
-**Current Milestone:** M5 — Operations & UX
-**Status:** M1–M4 complete, M5–M7 planned
+**Current Milestone:** M6 — Events, Analytics & Printing
+**Status:** M1–M5 complete, M6–M7 planned
 
 ---
 
@@ -151,13 +151,13 @@ order traceability, and financial visibility for owners and managers.
 
 ---
 
-## M5 — Operations & UX 🔄 IN PROGRESS
+## M5 — Operations & UX ✅ COMPLETE
 
 **Goal:** Make day-to-day operations smoother for every role — resilient ordering under network failures, richer table management, smarter production queues, and the UX polish that turns a usable system into one staff actually enjoy using.
 
 ### Localization
 
-**i18n (PT / EN)**
+**i18n (PT / EN)** ✅
 
 - Language configurable at install time and in admin settings
 - Full PT-BR and EN-US string coverage across desktop and mobile
@@ -165,7 +165,7 @@ order traceability, and financial visibility for owners and managers.
 
 ### Resilience
 
-**Offline Order Queue**
+**Offline Order Queue** ✅
 
 - Local queue of up to 10 orders per waiter when server is unreachable
 - Auto-retry with exponential backoff on reconnect
@@ -179,71 +179,71 @@ order traceability, and financial visibility for owners and managers.
 - All open orders are cancelled (`payment_method = 'cancelled'`) before deletion
 - Cascades through order items; leaves no orphaned records
 
-**Table Transfer**
+**Table Transfer** ✅
 
 - Move an open order from one table to another mid-service
 
-**Table Merge**
+**Table Merge** ✅
 
 - Combine two open orders into a single bill
 
-**Bill Splitting**
+**Bill Splitting** ✅
 
 - Split a bill by item selection or by equal division across N people
 
-**Visual Floor Map**
+**Visual Floor Map** ✅
 
 - Drag-and-drop table layout editor for owners/managers
 - Floor map as the default table-selection view for waiters
 - Table occupation time displayed on each table tile
 
-**Idle Table Alert**
+**Idle Table Alert** ✅
 
 - Configurable alert when a table has been open too long without new orders
 
 ### Production Queue
 
-**Priority Levels**
+**Priority Levels** ✅
 
 - Items flagged as Normal, Urgent, or VIP at order time
 - Kitchen/bar queues sorted and visually distinguished by priority
 
-**Prep Time & Delay Alerts**
+**Prep Time & Delay Alerts** ✅
 
 - Optional estimated prep time field per menu item
 - Alert when an item in the queue exceeds its estimated prep time
 
 ### Cashier & Billing
 
-**Daily Cashier Closing**
+**Daily Cashier Closing** ✅
 
 - End-of-day closing flow with summary of total revenue, payment methods, and open orders
 - Configurable option to block automatic closing (requires manager confirmation)
 
 ### Order Taking UX
 
-**Quick Order**
+**Quick Order** ✅
 
 - Tap a product name to open a quantity + notes popover and add in one step (no full item screen)
 
-**Product Variations**
+**Product Variations** ✅
 
 - Configurable variation groups per item (e.g. doneness, size, extras)
 - Waiter selects variations at order time; selection recorded on the order item
 
-**86'd Items**
+**86'd Items** ✅
 
 - Mark an item as out of stock for the day without deleting or disabling it permanently
 - Item appears greyed out with "86'd" badge; resets at midnight or on manual clear
 
-**Time-Based Menu**
+**Time-Based Menu** ✅
 
 - Define active time windows per menu category (breakfast, lunch, dinner, happy hour)
 - Items outside their window are hidden from the order screen automatically
 
 ### Notifications
 
-**Sound & Vibration**
+**Sound & Vibration** ✅
 
 - Sound notifications on desktop for new queue items
 - Tablet vibration on mobile for incoming order events
@@ -251,7 +251,7 @@ order traceability, and financial visibility for owners and managers.
 
 ---
 
-## M6 — Events, Analytics & Printing 🔜 PLANNED
+## M6 — Events, Analytics & Printing 🔜 NEXT
 
 **Goal:** Extend Vynex beyond the daily shift — reservations, event management, richer analytics, and hardware integrations that let staff close bills and print tickets without touching a screen.
 

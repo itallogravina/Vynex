@@ -171,3 +171,32 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Split sections inside a table card */
+.bill-split-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bill-split-divider {
+  border: none;
+  border-top: 1px dashed #bdc3c7;
+  margin: 0.5rem 0;
+}
+
+.bill-split-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #95a5a6;
+}
+
+.bill-subtotal-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  padding-top: 0.25rem;
+}

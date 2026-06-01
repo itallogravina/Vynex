@@ -104,23 +104,24 @@ export async function listOpenOrders(): Promise<OpenOrder[]> {
      ORDER BY o.created_at DESC`
   )
 
-  return Promise.all(
-    result.rows.map(async row => {
-      const items = await getOrderItems(row.id as string)
-      const total = items.reduce((sum, item) => sum + item.quantity * item.menu_item.price, 0)
-      return {
-        id: row.id as string,
-        table_id: row.table_id as string,
-        table_name: row.table_name as string,
-        routing_mode: row.routing_mode as OrderRoutingMode,
-        status: 'open' as const,
-        created_at: row.created_at as string,
-        updated_at: row.updated_at as string,
-        items,
-        total,
-      }
+  const orders: OpenOrder[] = []
+  for (const row of result.rows) {
+    const items = await getOrderItems(row.id as string)
+    const total = items.reduce((sum, item) => sum + item.quantity * item.menu_item.price, 0)
+    orders.push({
+      id: row.id as string,
+      table_id: row.table_id as string,
+      table_name: row.table_name as string,
+      routing_mode: row.routing_mode as OrderRoutingMode,
+      status: 'open' as const,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string,
+      items,
+      total,
+      split_group_id: (row.split_group_id as string) ?? undefined,
     })
-  )
+  }
+  return orders
 }
 
 function mapOrder(row: Record<string, unknown>): Order {
@@ -1039,6 +1040,7 @@ export async function splitOrderEqual(orderId: string, tableId: string, parts: n
   if (items.length === 0) throw new Error('No items to split')
 
   const now = new Date().toISOString()
+  const splitGroupId = uuid()
   const chunkSize = Math.ceil(items.length / parts)
   const newOrders: Order[] = []
 
@@ -1047,8 +1049,8 @@ export async function splitOrderEqual(orderId: string, tableId: string, parts: n
     if (chunk.length === 0) continue
     const newOrderId = uuid()
     await client.execute({
-      sql: 'INSERT INTO orders (id, table_id, routing_mode, status, opened_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      args: [newOrderId, tableId, 'auto', 'open', openedBy ?? null, now, now],
+      sql: 'INSERT INTO orders (id, table_id, routing_mode, status, opened_by, split_group_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [newOrderId, tableId, 'auto', 'open', openedBy ?? null, splitGroupId, now, now],
     })
     for (const item of chunk) {
       await client.execute({
@@ -1058,6 +1060,11 @@ export async function splitOrderEqual(orderId: string, tableId: string, parts: n
     }
     newOrders.push((await getOrder(newOrderId))!)
   }
+
+  await client.execute({
+    sql: 'UPDATE orders SET split_group_id = ?, updated_at = ? WHERE id = ?',
+    args: [splitGroupId, now, orderId],
+  })
 
   newOrders.push((await getOrder(orderId))!)
   return newOrders
@@ -1072,10 +1079,11 @@ export async function splitOrderByItems(
   const client = getClient()
   const now = new Date().toISOString()
   const newOrderId = uuid()
+  const splitGroupId = uuid()
 
   await client.execute({
-    sql: 'INSERT INTO orders (id, table_id, routing_mode, status, opened_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    args: [newOrderId, tableId, 'auto', 'open', openedBy ?? null, now, now],
+    sql: 'INSERT INTO orders (id, table_id, routing_mode, status, opened_by, split_group_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    args: [newOrderId, tableId, 'auto', 'open', openedBy ?? null, splitGroupId, now, now],
   })
 
   for (const itemId of itemIds) {
@@ -1084,6 +1092,11 @@ export async function splitOrderByItems(
       args: [newOrderId, now, itemId, orderId],
     })
   }
+
+  await client.execute({
+    sql: 'UPDATE orders SET split_group_id = ?, updated_at = ? WHERE id = ?',
+    args: [splitGroupId, now, orderId],
+  })
 
   return {
     original: (await getOrder(orderId))!,

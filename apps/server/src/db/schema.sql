@@ -106,6 +106,8 @@ CREATE TABLE IF NOT EXISTS orders (
   status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed')),
   payment_method TEXT CHECK(payment_method IN ('cash', 'card', 'cancelled', 'merged')),
   closed_at TEXT,
+  opened_by TEXT,
+  split_group_id TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (table_id) REFERENCES tables(id)

@@ -151,6 +151,7 @@ export type OpenOrder = {
   updated_at: string
   items: (OrderItem & { menu_item: MenuItem })[]
   total: number
+  split_group_id?: string
 }
 
 // ============================================================================
