@@ -17,9 +17,10 @@ import MenuManagementScreen from './screens/MenuManagementScreen'
 import UserManagementScreen from './screens/UserManagementScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import FloorMapScreen from './screens/FloorMapScreen'
+import ReportsScreen from './screens/ReportsScreen'
 import './App.css'
 
-type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'floor-map' | 'menu' | 'users' | 'settings'
+type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'floor-map' | 'menu' | 'users' | 'reports' | 'settings'
 
 function AppShell() {
   const { user, logout } = useAuth()
@@ -36,6 +37,7 @@ function AppShell() {
     { id: 'floor-map', label: t('nav.floorMap'), roles: ['owner', 'manager', 'waiter'] },
     { id: 'menu',      label: t('nav.menu'),     roles: ['owner', 'manager'] },
     { id: 'users',     label: t('nav.users'),    roles: ['owner', 'manager'] },
+    { id: 'reports',   label: t('nav.reports'),  roles: ['owner', 'manager'] },
     { id: 'settings',  label: t('nav.settings'), roles: ['owner', 'manager'] },
   ]
 
@@ -56,6 +58,7 @@ function AppShell() {
       case 'floor-map': return <FloorMapScreen />
       case 'menu':      return <MenuManagementScreen />
       case 'users':     return <UserManagementScreen />
+      case 'reports':   return <ReportsScreen />
       case 'settings':  return <SettingsScreen />
     }
   }

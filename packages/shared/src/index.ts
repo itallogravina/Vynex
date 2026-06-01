@@ -345,6 +345,28 @@ export type ShiftSummaryReport = {
   by_payment_method: { cash: number; card: number }
 }
 
+export type PeakHourReport = {
+  hours: { hour: number; orders: number; revenue: number }[]
+}
+
+export type CancellationRateReport = {
+  total_orders: number
+  cancelled_orders: number
+  cancellation_rate: number
+}
+
+export type PeriodComparison = {
+  period: 'week' | 'month'
+  current: { from: string; to: string; revenue: number; orders: number }
+  previous: { from: string; to: string; revenue: number; orders: number }
+  revenue_delta_pct: number | null
+  orders_delta_pct: number | null
+}
+
+export type NeverOrderedReport = {
+  items: { menu_item_id: string; name: string; category: string; price: number }[]
+}
+
 // ============================================================================
 // OFFLINE ORDER QUEUE TYPES
 // ============================================================================

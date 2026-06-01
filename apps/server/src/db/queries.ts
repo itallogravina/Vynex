@@ -22,6 +22,10 @@ import {
   TopItemsReport,
   PerWaiterReport,
   ShiftSummaryReport,
+  PeakHourReport,
+  CancellationRateReport,
+  PeriodComparison,
+  NeverOrderedReport,
   VariationGroup,
   VariationOption,
   CashierClosingSummary,
@@ -1338,5 +1342,144 @@ export async function getShiftSummaryReport(from: string, to: string): Promise<S
       cash: Math.round(Number(rev.cash ?? 0) * 100) / 100,
       card: Math.round(Number(rev.card ?? 0) * 100) / 100,
     },
+  }
+}
+
+export async function getPeakHourReport(from: string, to: string): Promise<PeakHourReport> {
+  const client = getClient()
+
+  const rows = await client.execute({
+    sql: `SELECT
+            CAST(strftime('%H', o.closed_at) AS INTEGER) as hour,
+            COUNT(DISTINCT o.id) as orders,
+            COALESCE(SUM(oi.quantity * mi.price), 0) as revenue
+          FROM orders o
+          JOIN order_items oi ON oi.order_id = o.id
+          JOIN menu_items mi ON mi.id = oi.menu_item_id
+          WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at < ?
+          GROUP BY hour
+          ORDER BY hour`,
+    args: [from, to],
+  })
+
+  const byHour = new Map<number, { orders: number; revenue: number }>()
+  for (const row of rows.rows) {
+    byHour.set(Number(row.hour), {
+      orders: Number(row.orders),
+      revenue: Math.round(Number(row.revenue) * 100) / 100,
+    })
+  }
+
+  return {
+    hours: Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      orders: byHour.get(h)?.orders ?? 0,
+      revenue: byHour.get(h)?.revenue ?? 0,
+    })),
+  }
+}
+
+export async function getCancellationRateReport(
+  from: string,
+  to: string
+): Promise<CancellationRateReport> {
+  const client = getClient()
+
+  const rows = await client.execute({
+    sql: `SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN payment_method = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+          FROM orders
+          WHERE created_at >= ? AND created_at < ?`,
+    args: [from, to],
+  })
+
+  const total = Number(rows.rows[0]?.total ?? 0)
+  const cancelled = Number(rows.rows[0]?.cancelled ?? 0)
+  return {
+    total_orders: total,
+    cancelled_orders: cancelled,
+    cancellation_rate: total > 0 ? Math.round((cancelled / total) * 10000) / 100 : 0,
+  }
+}
+
+export async function getPeriodComparison(period: 'week' | 'month'): Promise<PeriodComparison> {
+  const now = new Date()
+  let curFrom: string, curTo: string, prevFrom: string, prevTo: string
+
+  if (period === 'week') {
+    const today = new Date(now.toISOString().slice(0, 10))
+    const cur0 = new Date(today); cur0.setDate(today.getDate() - 6)
+    const prev1 = new Date(cur0); prev1.setDate(cur0.getDate() - 1)
+    const prev0 = new Date(prev1); prev0.setDate(prev1.getDate() - 6)
+    curFrom = cur0.toISOString().slice(0, 10)
+    curTo = new Date(today.getTime() + 86400000).toISOString().slice(0, 10)
+    prevFrom = prev0.toISOString().slice(0, 10)
+    prevTo = cur0.toISOString().slice(0, 10)
+  } else {
+    const y = now.getFullYear(), m = now.getMonth()
+    curFrom = `${y}-${String(m + 1).padStart(2, '0')}-01`
+    curTo = new Date(y, m + 1, 1).toISOString().slice(0, 10)
+    const pm = m === 0 ? 12 : m, py = m === 0 ? y - 1 : y
+    prevFrom = `${py}-${String(pm).padStart(2, '0')}-01`
+    prevTo = curFrom
+  }
+
+  const query = (from: string, to: string) =>
+    getClient().execute({
+      sql: `SELECT
+              COALESCE(SUM(oi.quantity * mi.price), 0) as revenue,
+              COUNT(DISTINCT o.id) as orders
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN menu_items mi ON mi.id = oi.menu_item_id
+            WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at < ?`,
+      args: [from, to],
+    })
+
+  const [cur, prev] = await Promise.all([query(curFrom, curTo), query(prevFrom, prevTo)])
+
+  const curRev = Math.round(Number(cur.rows[0]?.revenue ?? 0) * 100) / 100
+  const prevRev = Math.round(Number(prev.rows[0]?.revenue ?? 0) * 100) / 100
+  const curOrd = Number(cur.rows[0]?.orders ?? 0)
+  const prevOrd = Number(prev.rows[0]?.orders ?? 0)
+
+  const pct = (cur: number, prev: number) =>
+    prev === 0 ? null : Math.round(((cur - prev) / prev) * 10000) / 100
+
+  return {
+    period,
+    current: { from: curFrom, to: curTo, revenue: curRev, orders: curOrd },
+    previous: { from: prevFrom, to: prevTo, revenue: prevRev, orders: prevOrd },
+    revenue_delta_pct: pct(curRev, prevRev),
+    orders_delta_pct: pct(curOrd, prevOrd),
+  }
+}
+
+export async function getNeverOrderedReport(from: string, to: string): Promise<NeverOrderedReport> {
+  const client = getClient()
+
+  const rows = await client.execute({
+    sql: `SELECT mi.id as menu_item_id, mi.name, c.name as category, mi.price
+          FROM menu_items mi
+          JOIN categories c ON c.id = mi.category_id
+          WHERE mi.enabled = 1
+            AND mi.id NOT IN (
+              SELECT DISTINCT oi.menu_item_id
+              FROM order_items oi
+              JOIN orders o ON o.id = oi.order_id
+              WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at < ?
+            )
+          ORDER BY c.name, mi.name`,
+    args: [from, to],
+  })
+
+  return {
+    items: rows.rows.map(row => ({
+      menu_item_id: row.menu_item_id as string,
+      name: row.name as string,
+      category: row.category as string,
+      price: Number(row.price),
+    })),
   }
 }

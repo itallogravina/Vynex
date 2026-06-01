@@ -14,6 +14,7 @@ import { registerUserRoutes } from './routes/users'
 import { registerTableOpsRoutes } from './routes/table-ops'
 import { registerFloorMapRoutes } from './routes/floor-map'
 import { registerCashierClosingRoutes } from './routes/cashier-closing'
+import { registerReportsRoutes } from './routes/reports'
 import { registerWebSocketHandler } from './ws/handler'
 
 async function main() {
@@ -65,6 +66,7 @@ async function main() {
   await registerTableOpsRoutes(server)
   await registerFloorMapRoutes(server)
   await registerCashierClosingRoutes(server)
+  await registerReportsRoutes(server)
 
   const port = Number(process.env['PORT'] ?? 3000)
 
