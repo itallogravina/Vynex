@@ -8,6 +8,7 @@ import {
   CategoryWithItems,
   Table,
   TableWithStatus,
+  TableFloorMapItem,
   QueueItem,
   OpenOrder,
   OrderRoutingMode,
@@ -21,6 +22,9 @@ import {
   TopItemsReport,
   PerWaiterReport,
   ShiftSummaryReport,
+  VariationGroup,
+  VariationOption,
+  CashierClosingSummary,
 } from '@vynex/shared'
 
 // ============================================================================
@@ -417,15 +421,21 @@ function mapMenuItemFromRow(row: Record<string, unknown>): MenuItem {
 // CATEGORY QUERIES
 // ============================================================================
 
-export async function listCategories(): Promise<Category[]> {
-  const client = getClient()
-  const result = await client.execute('SELECT * FROM categories ORDER BY name')
-  return result.rows.map(row => ({
+function mapCategory(row: Record<string, unknown>): Category {
+  return {
     id: row.id as string,
     name: row.name as string,
     routing_zone: row.routing_zone as RoutingZone,
+    active_from: (row.active_from as string) ?? null,
+    active_to: (row.active_to as string) ?? null,
     created_at: row.created_at as string,
-  }))
+  }
+}
+
+export async function listCategories(): Promise<Category[]> {
+  const client = getClient()
+  const result = await client.execute('SELECT * FROM categories ORDER BY name')
+  return result.rows.map(mapCategory)
 }
 
 export async function listCategoriesWithItems(): Promise<CategoryWithItems[]> {
@@ -460,12 +470,24 @@ export async function createCategory(venueId: string, name: string, routingZone:
 
   const result = await client.execute({ sql: 'SELECT * FROM categories WHERE id = ?', args: [id] })
   const row = result.rows[0]!
-  return {
-    id: row.id as string,
-    name: row.name as string,
-    routing_zone: row.routing_zone as RoutingZone,
-    created_at: row.created_at as string,
-  }
+  return mapCategory(row)
+}
+
+export async function updateCategory(
+  categoryId: string,
+  name: string,
+  routingZone: RoutingZone,
+  activeFrom: string | null,
+  activeTo: string | null
+): Promise<Category> {
+  const client = getClient()
+  await client.execute({
+    sql: 'UPDATE categories SET name = ?, routing_zone = ?, active_from = ?, active_to = ? WHERE id = ?',
+    args: [name, routingZone, activeFrom ?? null, activeTo ?? null, categoryId],
+  })
+  await logMenuChange('categories', categoryId, 'update', { name, routing_zone: routingZone, active_from: activeFrom, active_to: activeTo })
+  const result = await client.execute({ sql: 'SELECT * FROM categories WHERE id = ?', args: [categoryId] })
+  return mapCategory(result.rows[0]!)
 }
 
 export async function deleteCategory(categoryId: string): Promise<void> {
@@ -480,14 +502,14 @@ export async function deleteCategory(categoryId: string): Promise<void> {
 
 export async function listTables(): Promise<Table[]> {
   const client = getClient()
-  const result = await client.execute('SELECT id, name, seats, created_at FROM tables ORDER BY name')
+  const result = await client.execute('SELECT id, name, seats, pos_x, pos_y, floor, created_at FROM tables ORDER BY name')
   return result.rows.map(mapTable)
 }
 
 export async function listTablesWithStatus(): Promise<TableWithStatus[]> {
   const client = getClient()
   const result = await client.execute(
-    `SELECT t.id, t.name, t.seats, t.created_at,
+    `SELECT t.id, t.name, t.seats, t.pos_x, t.pos_y, t.floor, t.created_at,
             CASE WHEN o.id IS NOT NULL THEN 'occupied' ELSE 'free' END as status,
             o.id as order_id
      FROM tables t
@@ -502,10 +524,62 @@ export async function listTablesWithStatus(): Promise<TableWithStatus[]> {
   }))
 }
 
+export async function listTablesForFloorMap(): Promise<TableFloorMapItem[]> {
+  const client = getClient()
+  const result = await client.execute(
+    `SELECT t.id, t.name, t.seats, t.pos_x, t.pos_y, t.floor, t.created_at,
+            CASE WHEN o.id IS NOT NULL THEN 'occupied' ELSE 'free' END as status,
+            o.id as order_id,
+            o.created_at as order_created_at
+     FROM tables t
+     LEFT JOIN orders o ON o.table_id = t.id AND o.status = 'open'
+     ORDER BY t.floor, t.name`
+  )
+
+  return result.rows.map(row => ({
+    ...mapTable(row),
+    status: row.status as 'free' | 'occupied',
+    order_id: (row.order_id as string) ?? undefined,
+    opened_at: (row.order_created_at as string) ?? undefined,
+  }))
+}
+
+export async function updateTablePosition(tableId: string, posX: number, posY: number, floor: number): Promise<Table> {
+  const client = getClient()
+  await client.execute({
+    sql: 'UPDATE tables SET pos_x = ?, pos_y = ?, floor = ? WHERE id = ?',
+    args: [posX, posY, floor, tableId],
+  })
+  return (await getTable(tableId))!
+}
+
+export async function listIdleTables(idleMinutes: number): Promise<TableFloorMapItem[]> {
+  const client = getClient()
+  const cutoff = new Date(Date.now() - idleMinutes * 60 * 1000).toISOString()
+  const result = await client.execute({
+    sql: `SELECT t.id, t.name, t.seats, t.pos_x, t.pos_y, t.floor, t.created_at,
+                 'occupied' as status, o.id as order_id, o.created_at as order_created_at
+          FROM tables t
+          JOIN orders o ON o.table_id = t.id AND o.status = 'open'
+          WHERE o.created_at < ?
+            AND NOT EXISTS (
+              SELECT 1 FROM order_items oi
+              WHERE oi.order_id = o.id AND oi.created_at > ?
+            )`,
+    args: [cutoff, cutoff],
+  })
+  return result.rows.map(row => ({
+    ...mapTable(row),
+    status: 'occupied' as const,
+    order_id: (row.order_id as string) ?? undefined,
+    opened_at: (row.order_created_at as string) ?? undefined,
+  }))
+}
+
 export async function getTable(tableId: string): Promise<Table | null> {
   const client = getClient()
   const result = await client.execute({
-    sql: 'SELECT id, name, seats, created_at FROM tables WHERE id = ?',
+    sql: 'SELECT id, name, seats, pos_x, pos_y, floor, created_at FROM tables WHERE id = ?',
     args: [tableId],
   })
   const row = result.rows[0]
@@ -575,6 +649,9 @@ function mapTable(row: Record<string, unknown>): Table {
     id: row.id as string,
     name: row.name as string,
     seats: row.seats as number,
+    pos_x: (row.pos_x as number) ?? 0,
+    pos_y: (row.pos_y as number) ?? 0,
+    floor: (row.floor as number) ?? 0,
     created_at: row.created_at as string,
   }
 }
@@ -924,6 +1001,286 @@ export async function getPerWaiterReport(from: string, to: string): Promise<PerW
       revenue: Math.round(Number(row.revenue) * 100) / 100,
     })),
   }
+}
+
+// ============================================================================
+// TABLE OPS — TRANSFER, MERGE, SPLIT
+// ============================================================================
+
+export async function transferOrder(orderId: string, toTableId: string): Promise<Order> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: 'UPDATE orders SET table_id = ?, updated_at = ? WHERE id = ?',
+    args: [toTableId, now, orderId],
+  })
+  return (await getOrder(orderId))!
+}
+
+export async function mergeOrders(sourceOrderId: string, targetOrderId: string): Promise<Order> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: 'UPDATE order_items SET order_id = ?, updated_at = ? WHERE order_id = ?',
+    args: [targetOrderId, now, sourceOrderId],
+  })
+  await client.execute({
+    sql: `UPDATE orders SET status = 'closed', payment_method = 'merged', closed_at = ?, updated_at = ? WHERE id = ?`,
+    args: [now, now, sourceOrderId],
+  })
+  return (await getOrder(targetOrderId))!
+}
+
+export async function splitOrderEqual(orderId: string, tableId: string, parts: number, openedBy?: string): Promise<Order[]> {
+  const client = getClient()
+  const items = await getOrderItems(orderId)
+  if (items.length === 0) throw new Error('No items to split')
+
+  const now = new Date().toISOString()
+  const chunkSize = Math.ceil(items.length / parts)
+  const newOrders: Order[] = []
+
+  for (let i = 0; i < parts - 1; i++) {
+    const chunk = items.slice(i * chunkSize, (i + 1) * chunkSize)
+    if (chunk.length === 0) continue
+    const newOrderId = uuid()
+    await client.execute({
+      sql: 'INSERT INTO orders (id, table_id, routing_mode, status, opened_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      args: [newOrderId, tableId, 'auto', 'open', openedBy ?? null, now, now],
+    })
+    for (const item of chunk) {
+      await client.execute({
+        sql: 'UPDATE order_items SET order_id = ?, updated_at = ? WHERE id = ?',
+        args: [newOrderId, now, item.id],
+      })
+    }
+    newOrders.push((await getOrder(newOrderId))!)
+  }
+
+  newOrders.push((await getOrder(orderId))!)
+  return newOrders
+}
+
+export async function splitOrderByItems(
+  orderId: string,
+  tableId: string,
+  itemIds: string[],
+  openedBy?: string
+): Promise<{ original: Order; split: Order }> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  const newOrderId = uuid()
+
+  await client.execute({
+    sql: 'INSERT INTO orders (id, table_id, routing_mode, status, opened_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    args: [newOrderId, tableId, 'auto', 'open', openedBy ?? null, now, now],
+  })
+
+  for (const itemId of itemIds) {
+    await client.execute({
+      sql: 'UPDATE order_items SET order_id = ?, updated_at = ? WHERE id = ? AND order_id = ?',
+      args: [newOrderId, now, itemId, orderId],
+    })
+  }
+
+  return {
+    original: (await getOrder(orderId))!,
+    split: (await getOrder(newOrderId))!,
+  }
+}
+
+// ============================================================================
+// VENUE SETTINGS
+// ============================================================================
+
+export async function getVenueSettings(): Promise<{ idle_alert_minutes: number | null }> {
+  const client = getClient()
+  const result = await client.execute('SELECT idle_alert_minutes FROM venues LIMIT 1')
+  return { idle_alert_minutes: (result.rows[0]?.idle_alert_minutes as number) ?? null }
+}
+
+export async function updateVenueIdleAlert(minutes: number | null): Promise<void> {
+  const client = getClient()
+  await client.execute({
+    sql: 'UPDATE venues SET idle_alert_minutes = ?',
+    args: [minutes],
+  })
+}
+
+// ============================================================================
+// PRODUCT VARIATIONS
+// ============================================================================
+
+export async function listVariationGroups(menuItemId: string): Promise<VariationGroup[]> {
+  const client = getClient()
+  const groups = await client.execute({
+    sql: 'SELECT * FROM item_variation_groups WHERE menu_item_id = ? ORDER BY created_at',
+    args: [menuItemId],
+  })
+  return Promise.all(groups.rows.map(async row => {
+    const opts = await client.execute({
+      sql: 'SELECT * FROM item_variation_options WHERE group_id = ? ORDER BY created_at',
+      args: [row.id],
+    })
+    return {
+      id: row.id as string,
+      menu_item_id: row.menu_item_id as string,
+      name: row.name as string,
+      required: row.required === 1 || row.required === true,
+      options: opts.rows.map(o => ({
+        id: o.id as string,
+        group_id: o.group_id as string,
+        name: o.name as string,
+        price_delta: o.price_delta as number,
+        created_at: o.created_at as string,
+      } as VariationOption)),
+      created_at: row.created_at as string,
+    } as VariationGroup
+  }))
+}
+
+export async function createVariationGroup(
+  menuItemId: string,
+  name: string,
+  required: boolean
+): Promise<VariationGroup> {
+  const client = getClient()
+  const id = uuid()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: 'INSERT INTO item_variation_groups (id, menu_item_id, name, required, created_at) VALUES (?, ?, ?, ?, ?)',
+    args: [id, menuItemId, name, required ? 1 : 0, now],
+  })
+  const groups = await listVariationGroups(menuItemId)
+  return groups.find(g => g.id === id)!
+}
+
+export async function deleteVariationGroup(groupId: string): Promise<void> {
+  const client = getClient()
+  await client.execute({ sql: 'DELETE FROM item_variation_options WHERE group_id = ?', args: [groupId] })
+  await client.execute({ sql: 'DELETE FROM item_variation_groups WHERE id = ?', args: [groupId] })
+}
+
+export async function createVariationOption(
+  groupId: string,
+  name: string,
+  priceDelta: number
+): Promise<VariationOption> {
+  const client = getClient()
+  const id = uuid()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: 'INSERT INTO item_variation_options (id, group_id, name, price_delta, created_at) VALUES (?, ?, ?, ?, ?)',
+    args: [id, groupId, name, priceDelta, now],
+  })
+  const result = await client.execute({ sql: 'SELECT * FROM item_variation_options WHERE id = ?', args: [id] })
+  const row = result.rows[0]!
+  return {
+    id: row.id as string,
+    group_id: row.group_id as string,
+    name: row.name as string,
+    price_delta: row.price_delta as number,
+    created_at: row.created_at as string,
+  }
+}
+
+export async function deleteVariationOption(optionId: string): Promise<void> {
+  const client = getClient()
+  await client.execute({ sql: 'DELETE FROM item_variation_options WHERE id = ?', args: [optionId] })
+}
+
+export async function addOrderItemVariations(orderItemId: string, optionIds: string[]): Promise<void> {
+  if (optionIds.length === 0) return
+  const client = getClient()
+  for (const optionId of optionIds) {
+    await client.execute({
+      sql: 'INSERT OR IGNORE INTO order_item_variations (order_item_id, option_id) VALUES (?, ?)',
+      args: [orderItemId, optionId],
+    })
+  }
+}
+
+export async function listMenuItemsWithTimeFilter(currentTime: string): Promise<MenuItem[]> {
+  const client = getClient()
+  const result = await client.execute({
+    sql: `SELECT mi.* FROM menu_items mi
+          JOIN categories c ON mi.category_id = c.id
+          WHERE mi.enabled = 1
+            AND (
+              c.active_from IS NULL OR c.active_to IS NULL
+              OR (? >= c.active_from AND ? <= c.active_to)
+            )
+          ORDER BY mi.name`,
+    args: [currentTime, currentTime],
+  })
+  return result.rows.map(mapMenuItem)
+}
+
+// ============================================================================
+// CASHIER CLOSING
+// ============================================================================
+
+export async function getCashierClosingSummary(): Promise<CashierClosingSummary> {
+  const client = getClient()
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const from = todayStart.toISOString()
+  const to = new Date().toISOString()
+
+  const [revenue, openCount, topItems] = await Promise.all([
+    client.execute({
+      sql: `SELECT
+              COUNT(DISTINCT o.id) as orders_closed,
+              COALESCE(SUM(CASE WHEN o.payment_method = 'cash' THEN oi.quantity * mi.price ELSE 0 END), 0) as cash,
+              COALESCE(SUM(CASE WHEN o.payment_method = 'card' THEN oi.quantity * mi.price ELSE 0 END), 0) as card,
+              COALESCE(SUM(oi.quantity * mi.price), 0) as total
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN menu_items mi ON mi.id = oi.menu_item_id
+            WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at <= ?
+              AND o.payment_method IN ('cash', 'card')`,
+      args: [from, to],
+    }),
+    client.execute({
+      sql: `SELECT COUNT(*) as count FROM orders WHERE status = 'open'`,
+      args: [],
+    }),
+    client.execute({
+      sql: `SELECT mi.name, SUM(oi.quantity) as qty, SUM(oi.quantity * mi.price) as rev
+            FROM order_items oi
+            JOIN menu_items mi ON mi.id = oi.menu_item_id
+            JOIN orders o ON o.id = oi.order_id
+            WHERE o.status = 'closed' AND o.closed_at >= ? AND o.closed_at <= ?
+            GROUP BY oi.menu_item_id ORDER BY rev DESC LIMIT 5`,
+      args: [from, to],
+    }),
+  ])
+
+  const rev = revenue.rows[0]!
+  return {
+    total_revenue: Math.round(Number(rev.total ?? 0) * 100) / 100,
+    orders_closed: Number(rev.orders_closed ?? 0),
+    orders_open: Number(openCount.rows[0]?.count ?? 0),
+    revenue_by_payment: {
+      cash: Math.round(Number(rev.cash ?? 0) * 100) / 100,
+      card: Math.round(Number(rev.card ?? 0) * 100) / 100,
+    },
+    top_items: topItems.rows.map(r => ({
+      name: r.name as string,
+      quantity: Number(r.qty),
+      revenue: Math.round(Number(r.rev) * 100) / 100,
+    })),
+  }
+}
+
+export async function createCashierClosing(closedBy: string, summary: CashierClosingSummary): Promise<void> {
+  const client = getClient()
+  const id = uuid()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: 'INSERT INTO cashier_closings (id, closed_by, closed_at, summary_json) VALUES (?, ?, ?, ?)',
+    args: [id, closedBy, now, JSON.stringify(summary)],
+  })
 }
 
 export async function getShiftSummaryReport(from: string, to: string): Promise<ShiftSummaryReport> {

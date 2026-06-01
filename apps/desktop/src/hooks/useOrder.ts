@@ -55,7 +55,7 @@ export function useOrder() {
   )
 
   const addItem = useCallback(
-    async (menu_item: MenuItem, quantity: number, notes?: string, priority?: Priority) => {
+    async (menu_item: MenuItem, quantity: number, notes?: string, priority?: Priority, variations?: string[]) => {
       if (!order) throw new Error('No order created')
       setLoading(true)
       setError(null)
@@ -64,6 +64,7 @@ export function useOrder() {
         const body: AddOrderItemRequest = { menu_item_id: menu_item.id, quantity }
         if (notes) body.notes = notes
         if (priority) body.priority = priority
+        if (variations && variations.length > 0) body.variations = variations
         const response = await fetch(`${serverUrl}/orders/${order.id}/items`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

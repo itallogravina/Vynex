@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import {
   createOrder,
   addOrderItem,
+  addOrderItemVariations,
   updateOrderItemStatus,
   getOrder,
   getOrderItems,
@@ -9,7 +10,6 @@ import {
   getMenuItem,
   getTable,
   listTables,
-  listMenuItems,
   closeOrder,
   listOpenOrders,
 } from '../db/queries'
@@ -33,10 +33,6 @@ import {
 export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   app.get('/tables', async () => {
     return listTables()
-  })
-
-  app.get('/menu-items', async () => {
-    return listMenuItems()
   })
 
   app.get('/orders/open', async () => {
@@ -97,7 +93,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     '/orders/:id/items',
     async (request, reply) => {
       const { id } = request.params
-      const { menu_item_id, quantity, notes, priority } = request.body
+      const { menu_item_id, quantity, notes, priority, variations } = request.body
 
       const order = await getOrder(id)
       if (!order) {
@@ -114,6 +110,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         priority && validPriorities.includes(priority) ? priority : Priority.NORMAL
 
       const item = await addOrderItem(id, menu_item_id, quantity, notes, undefined, resolvedPriority)
+
+      if (variations && variations.length > 0) {
+        await addOrderItemVariations(item.id, variations)
+      }
 
       if (order.routing_mode === 'auto') {
         const table = await getTable(order.table_id)

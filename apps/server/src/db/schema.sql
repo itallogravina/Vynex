@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS venues (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  idle_alert_minutes INTEGER,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -14,6 +15,9 @@ CREATE TABLE IF NOT EXISTS tables (
   venue_id TEXT NOT NULL,
   name TEXT NOT NULL,
   seats INTEGER NOT NULL,
+  pos_x INTEGER NOT NULL DEFAULT 0,
+  pos_y INTEGER NOT NULL DEFAULT 0,
+  floor INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (venue_id) REFERENCES venues(id)
 );
@@ -24,6 +28,8 @@ CREATE TABLE IF NOT EXISTS categories (
   venue_id TEXT NOT NULL,
   name TEXT NOT NULL,
   routing_zone TEXT NOT NULL CHECK(routing_zone IN ('kitchen', 'bar', 'cashier', 'table')),
+  active_from TEXT,
+  active_to TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (venue_id) REFERENCES venues(id)
 );
@@ -43,6 +49,44 @@ CREATE TABLE IF NOT EXISTS menu_items (
   FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
+-- Variation groups per menu item (e.g. "Doneness", "Size")
+CREATE TABLE IF NOT EXISTS item_variation_groups (
+  id TEXT PRIMARY KEY,
+  menu_item_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  required INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
+);
+
+-- Options within a variation group (e.g. "Rare", "Medium", "Well Done")
+CREATE TABLE IF NOT EXISTS item_variation_options (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  price_delta INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (group_id) REFERENCES item_variation_groups(id) ON DELETE CASCADE
+);
+
+-- Variations selected per order item
+CREATE TABLE IF NOT EXISTS order_item_variations (
+  order_item_id TEXT NOT NULL,
+  option_id TEXT NOT NULL,
+  PRIMARY KEY (order_item_id, option_id),
+  FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
+  FOREIGN KEY (option_id) REFERENCES item_variation_options(id)
+);
+
+-- Daily cashier closing records
+CREATE TABLE IF NOT EXISTS cashier_closings (
+  id TEXT PRIMARY KEY,
+  closed_by TEXT NOT NULL,
+  closed_at TEXT NOT NULL,
+  summary_json TEXT NOT NULL,
+  FOREIGN KEY (closed_by) REFERENCES users(id)
+);
+
 -- Audit log for menu and category changes (used for manual conflict detection)
 CREATE TABLE IF NOT EXISTS menu_changes_log (
   id TEXT PRIMARY KEY,
@@ -60,7 +104,7 @@ CREATE TABLE IF NOT EXISTS orders (
   table_id TEXT NOT NULL,
   routing_mode TEXT NOT NULL CHECK(routing_mode IN ('manual', 'auto')),
   status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed')),
-  payment_method TEXT CHECK(payment_method IN ('cash', 'card', 'cancelled')),
+  payment_method TEXT CHECK(payment_method IN ('cash', 'card', 'cancelled', 'merged')),
   closed_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

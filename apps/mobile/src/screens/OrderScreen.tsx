@@ -179,6 +179,12 @@ export default function OrderScreen() {
     }
   }
 
+  const handleBackToTables = () => {
+  setOrder(null)
+  setOrderItems([])
+  setSearchTerm('') // Opcional: limpa a busca de itens ao sair
+}
+
   const filteredItems = menuItems.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -294,11 +300,18 @@ export default function OrderScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.orderHeader}>
-        <Text style={styles.orderTitle}>Order #{order.id.slice(0, 8)}</Text>
-        <Text style={styles.orderInfo}>
-          Table: {tables.find(t => t.id === order.table_id)?.name || 'Unknown'}
-        </Text>
-        <Text style={styles.orderInfo}>Mode: {order.routing_mode.toUpperCase()}</Text>
+        <View style={styles.headerTopRow}>
+
+          <Text style={styles.orderTitle}>Order #{order.id.slice(0, 8)}</Text>
+          <Text style={styles.orderInfo}>
+            Table: {tables.find(t => t.id === order.table_id)?.name || 'Unknown'}
+          </Text>
+          <Text style={styles.orderInfo}>Mode: {order.routing_mode.toUpperCase()}</Text>
+        </View>
+        {/* Botão de Voltar para Mesas */}
+          <TouchableOpacity style={styles.backButton} onPress={handleBackToTables}>
+            <Text style={styles.backButtonText}>Mesas</Text>
+          </TouchableOpacity>
       </View>
 
       <QuickOrderPopover
@@ -658,5 +671,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     fontWeight: '600',
+  },
+  // Adicione estes estilos no final do seu StyleSheet.create({ ... })
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  backButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#ef4444', // Vermelho/coral para ação de saída/cancelamento
+    borderRadius: 4,
+  },
+  backButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
   },
 })

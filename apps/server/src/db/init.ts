@@ -163,6 +163,124 @@ async function runMigrations(): Promise<void> {
       await client!.execute('ALTER TABLE menu_items ADD COLUMN prep_time_seconds INTEGER')
     }
   } catch { /* already exists */ }
+
+  // M5 remaining: time-based menu (active_from/active_to on categories)
+  try {
+    const catCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('categories')`, args: [] })
+    const catColNames = new Set(catCols.rows.map(r => r.name as string))
+    if (!catColNames.has('active_from')) {
+      await client!.execute('ALTER TABLE categories ADD COLUMN active_from TEXT')
+    }
+    if (!catColNames.has('active_to')) {
+      await client!.execute('ALTER TABLE categories ADD COLUMN active_to TEXT')
+    }
+  } catch { /* already exists */ }
+
+  // M5: floor map position columns on tables
+  try {
+    const tblCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('tables')`, args: [] })
+    const tblColNames = new Set(tblCols.rows.map(r => r.name as string))
+    if (!tblColNames.has('pos_x')) {
+      await client!.execute('ALTER TABLE tables ADD COLUMN pos_x INTEGER NOT NULL DEFAULT 0')
+    }
+    if (!tblColNames.has('pos_y')) {
+      await client!.execute('ALTER TABLE tables ADD COLUMN pos_y INTEGER NOT NULL DEFAULT 0')
+    }
+    if (!tblColNames.has('floor')) {
+      await client!.execute('ALTER TABLE tables ADD COLUMN floor INTEGER NOT NULL DEFAULT 0')
+    }
+  } catch { /* already exists */ }
+
+  // M5: idle alert minutes on venues
+  try {
+    const venCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('venues')`, args: [] })
+    const venColNames = new Set(venCols.rows.map(r => r.name as string))
+    if (!venColNames.has('idle_alert_minutes')) {
+      await client!.execute('ALTER TABLE venues ADD COLUMN idle_alert_minutes INTEGER')
+    }
+  } catch { /* already exists */ }
+
+  // M5: widen orders.payment_method CHECK to include 'merged'
+  try {
+    const masterRow2 = await client!.execute({
+      sql: `SELECT sql FROM sqlite_master WHERE type='table' AND name='orders'`,
+      args: [],
+    })
+    const ddl2 = (masterRow2.rows[0]?.sql as string) ?? ''
+    if (!ddl2.includes("'merged'")) {
+      await client!.execute('PRAGMA foreign_keys = OFF')
+      await client!.execute(`
+        CREATE TABLE IF NOT EXISTS orders_new2 (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL,
+          routing_mode TEXT NOT NULL CHECK(routing_mode IN ('manual', 'auto')),
+          status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed')),
+          payment_method TEXT CHECK(payment_method IN ('cash', 'card', 'cancelled', 'merged')),
+          closed_at TEXT,
+          opened_by TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (table_id) REFERENCES tables(id)
+        )
+      `)
+      await client!.execute(
+        `INSERT INTO orders_new2 SELECT id, table_id, routing_mode, status, payment_method,
+           closed_at, opened_by, created_at, updated_at FROM orders`
+      )
+      await client!.execute('DROP TABLE orders')
+      await client!.execute('ALTER TABLE orders_new2 RENAME TO orders')
+      await client!.execute('CREATE INDEX IF NOT EXISTS idx_orders_table_id ON orders(table_id)')
+      await client!.execute('PRAGMA foreign_keys = ON')
+      console.log('[db] migration: orders.payment_method CHECK widened to include merged')
+    }
+  } catch (e) {
+    console.error('[db] migration failed (orders CHECK merged):', e)
+  }
+
+  // M5: product variation tables
+  try {
+    await client!.execute(`
+      CREATE TABLE IF NOT EXISTS item_variation_groups (
+        id TEXT PRIMARY KEY,
+        menu_item_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        required INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
+      )
+    `)
+    await client!.execute(`
+      CREATE TABLE IF NOT EXISTS item_variation_options (
+        id TEXT PRIMARY KEY,
+        group_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        price_delta INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (group_id) REFERENCES item_variation_groups(id) ON DELETE CASCADE
+      )
+    `)
+    await client!.execute(`
+      CREATE TABLE IF NOT EXISTS order_item_variations (
+        order_item_id TEXT NOT NULL,
+        option_id TEXT NOT NULL,
+        PRIMARY KEY (order_item_id, option_id),
+        FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (option_id) REFERENCES item_variation_options(id)
+      )
+    `)
+  } catch { /* already exists */ }
+
+  // M5: cashier closing table
+  try {
+    await client!.execute(`
+      CREATE TABLE IF NOT EXISTS cashier_closings (
+        id TEXT PRIMARY KEY,
+        closed_by TEXT NOT NULL,
+        closed_at TEXT NOT NULL,
+        summary_json TEXT NOT NULL
+      )
+    `)
+  } catch { /* already exists */ }
 }
 
 async function seedDefaultVenue(): Promise<void> {

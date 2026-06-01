@@ -1,0 +1,101 @@
+.floor-map-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+}
+
+.floor-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.floor-tab {
+  padding: 6px 14px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #1a1a1a;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.floor-tab.active {
+  background: #4f8ef7;
+  color: #fff;
+  border-color: #4f8ef7;
+}
+
+.floor-map-canvas {
+  position: relative;
+  flex: 1;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.floor-table {
+  position: absolute;
+  width: 80px;
+  height: 70px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 2px solid;
+  font-size: 12px;
+  user-select: none;
+  transition: box-shadow 0.15s;
+}
+
+.floor-table--free {
+  background: #1e3a2f;
+  border-color: #2d5c42;
+  color: #5dbd7a;
+}
+
+.floor-table--occupied {
+  background: #3a1e1e;
+  border-color: #8b2020;
+  color: #e05050;
+}
+
+.floor-table--draggable {
+  cursor: grab;
+}
+
+.floor-table--draggable:active {
+  cursor: grabbing;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  z-index: 10;
+}
+
+.floor-table-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.floor-table-seats {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.floor-table-time {
+  font-size: 11px;
+  font-weight: 700;
+  color: #e05050;
+}
+
+.floor-map-hint {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  padding: 4px 0 8px;
+}

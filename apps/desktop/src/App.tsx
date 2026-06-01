@@ -3,6 +3,7 @@ import { VYNEX_VERSION } from '@vynex/shared'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ServerUrlProvider } from './context/ServerUrlContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { I18nProvider, useTranslation } from './context/I18nContext'
 import { useConnectionStatus } from './hooks/useConnectionStatus'
 import LoginScreen from './screens/LoginScreen'
 import { OrderScreen } from './screens/OrderScreen'
@@ -13,42 +14,43 @@ import TableManagementScreen from './screens/TableManagementScreen'
 import MenuManagementScreen from './screens/MenuManagementScreen'
 import UserManagementScreen from './screens/UserManagementScreen'
 import SettingsScreen from './screens/SettingsScreen'
+import FloorMapScreen from './screens/FloorMapScreen'
 import './App.css'
 
-type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'menu' | 'users' | 'settings'
-
-const ALL_NAV: { id: ScreenType; label: string; roles: string[] }[] = [
-  { id: 'order',    label: 'Order',    roles: ['owner', 'manager', 'waiter'] },
-  { id: 'kitchen',  label: 'Kitchen',  roles: ['owner', 'manager', 'kitchen'] },
-  { id: 'bar',      label: 'Bar',      roles: ['owner', 'manager', 'bartender'] },
-  { id: 'cashier',  label: 'Cashier',  roles: ['owner', 'manager', 'cashier'] },
-  { id: 'tables',   label: 'Tables',   roles: ['owner', 'manager', 'waiter'] },
-  { id: 'menu',     label: 'Menu',     roles: ['owner', 'manager'] },
-  { id: 'users',    label: 'Users',    roles: ['owner', 'manager'] },
-  { id: 'settings', label: 'Settings', roles: ['owner', 'manager'] },
-]
+type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'floor-map' | 'menu' | 'users' | 'settings'
 
 function AppShell() {
   const { user, logout } = useAuth()
+  const { t } = useTranslation()
   const role = user?.role ?? ''
+
+  const ALL_NAV: { id: ScreenType; label: string; roles: string[] }[] = [
+    { id: 'order',     label: t('nav.order'),    roles: ['owner', 'manager', 'waiter'] },
+    { id: 'kitchen',   label: t('nav.kitchen'),  roles: ['owner', 'manager', 'kitchen'] },
+    { id: 'bar',       label: t('nav.bar'),      roles: ['owner', 'manager', 'bartender'] },
+    { id: 'cashier',   label: t('nav.cashier'),  roles: ['owner', 'manager', 'cashier'] },
+    { id: 'tables',    label: t('nav.tables'),   roles: ['owner', 'manager', 'waiter'] },
+    { id: 'floor-map', label: t('nav.floorMap'), roles: ['owner', 'manager', 'waiter'] },
+    { id: 'menu',      label: t('nav.menu'),     roles: ['owner', 'manager'] },
+    { id: 'users',     label: t('nav.users'),    roles: ['owner', 'manager'] },
+    { id: 'settings',  label: t('nav.settings'), roles: ['owner', 'manager'] },
+  ]
+
   const visibleNav = ALL_NAV.filter(n => n.roles.includes(role))
-
-  const [currentScreen, setCurrentScreen] = useState<ScreenType>(() => {
-    return visibleNav[0]?.id ?? 'order'
-  })
-
+  const [currentScreen, setCurrentScreen] = useState<ScreenType>(() => visibleNav[0]?.id ?? 'order')
   const { status } = useConnectionStatus()
 
   const renderScreen = () => {
     switch (currentScreen) {
-      case 'order':    return <OrderScreen />
-      case 'kitchen':  return <KitchenScreen />
-      case 'bar':      return <BarScreen />
-      case 'cashier':  return <CashierScreen />
-      case 'tables':   return <TableManagementScreen />
-      case 'menu':     return <MenuManagementScreen />
-      case 'users':    return <UserManagementScreen />
-      case 'settings': return <SettingsScreen />
+      case 'order':     return <OrderScreen />
+      case 'kitchen':   return <KitchenScreen />
+      case 'bar':       return <BarScreen />
+      case 'cashier':   return <CashierScreen />
+      case 'tables':    return <TableManagementScreen />
+      case 'floor-map': return <FloorMapScreen />
+      case 'menu':      return <MenuManagementScreen />
+      case 'users':     return <UserManagementScreen />
+      case 'settings':  return <SettingsScreen />
     }
   }
 
@@ -67,10 +69,10 @@ function AppShell() {
         <div className="sidebar-footer">
           <span className={`conn-dot conn-dot--${status}`} title={status} />
           <span className="conn-label">
-            {status === 'connected' ? 'Online' : status === 'disconnected' ? 'Offline' : '…'}
+            {status === 'connected' ? t('queue.connected') : status === 'disconnected' ? t('queue.offline') : '…'}
           </span>
           {user && (
-            <button className="logout-btn" onClick={logout} title={`Signed in as ${user.name} (${user.role})`}>
+            <button className="logout-btn" onClick={logout} title={`${user.name} (${user.role})`}>
               {user.name}
             </button>
           )}
@@ -93,9 +95,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ServerUrlProvider>
-        <AuthProvider>
-          <AuthGate />
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <AuthGate />
+          </AuthProvider>
+        </I18nProvider>
       </ServerUrlProvider>
     </ErrorBoundary>
   )

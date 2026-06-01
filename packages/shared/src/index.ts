@@ -53,6 +53,8 @@ export type Category = {
   id: string
   name: string
   routing_zone: RoutingZone
+  active_from: string | null
+  active_to: string | null
   created_at: string
 }
 
@@ -76,7 +78,7 @@ export type Order = {
   table_id: string
   routing_mode: OrderRoutingMode
   status: 'open' | 'closed'
-  payment_method?: 'cash' | 'card' | 'cancelled'
+  payment_method?: 'cash' | 'card' | 'cancelled' | 'merged'
   closed_at?: string
   opened_by?: string
   created_at: string
@@ -87,12 +89,46 @@ export type Table = {
   id: string
   name: string
   seats: number
+  pos_x: number
+  pos_y: number
+  floor: number
   created_at: string
 }
 
 export type TableWithStatus = Table & {
   status: 'free' | 'occupied'
   order_id?: string
+}
+
+export type TableFloorMapItem = Table & {
+  status: 'free' | 'occupied'
+  order_id?: string
+  opened_at?: string
+}
+
+export type VariationGroup = {
+  id: string
+  menu_item_id: string
+  name: string
+  required: boolean
+  options: VariationOption[]
+  created_at: string
+}
+
+export type VariationOption = {
+  id: string
+  group_id: string
+  name: string
+  price_delta: number
+  created_at: string
+}
+
+export type CashierClosingSummary = {
+  total_revenue: number
+  orders_closed: number
+  orders_open: number
+  revenue_by_payment: { cash: number; card: number }
+  top_items: { name: string; quantity: number; revenue: number }[]
 }
 
 // Order shape returned in queue responses — includes resolved table_name
@@ -133,6 +169,42 @@ export type AddOrderItemRequest = {
   quantity: number
   notes?: string
   priority?: Priority
+  variations?: string[]
+}
+
+export type TransferOrderRequest = {
+  to_table_id: string
+}
+
+export type MergeOrderRequest = {
+  into_order_id: string
+}
+
+export type SplitOrderRequest =
+  | { mode: 'equal'; parts: number }
+  | { mode: 'items'; item_ids: string[] }
+
+export type UpdateTablePositionRequest = {
+  pos_x: number
+  pos_y: number
+  floor?: number
+}
+
+export type CreateVariationGroupRequest = {
+  name: string
+  required?: boolean
+}
+
+export type CreateVariationOptionRequest = {
+  name: string
+  price_delta?: number
+}
+
+export type UpdateCategoryRequest = {
+  name: string
+  routing_zone: RoutingZone
+  active_from?: string | null
+  active_to?: string | null
 }
 
 export type AddOrderItemResponse = OrderItem
