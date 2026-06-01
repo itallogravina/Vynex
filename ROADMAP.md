@@ -77,7 +77,7 @@ Offline-first. Real-time order routing. Single-operator deployable.
 
 ---
 
-### M6 — Events, Analytics & Printing 🔜 NEXT
+### M6 — Events, Analytics & Printing 🚧 IN PROGRESS
 
 **Reservations & Events**
 - Table reservations with client name, party size, arrival time; seat alert; auto-open order
@@ -96,7 +96,7 @@ Offline-first. Real-time order routing. Single-operator deployable.
 - Physical tab number assignment (nightclub/bar use)
 - Minimum consumption per person or table; cashier alert at closing if not met
 
-**Analytics**
+**Analytics** ✅ DONE
 - Average ticket per table and per waiter
 - Peak hour chart (orders and revenue by hour)
 - Item cancellation rate
