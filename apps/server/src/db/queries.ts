@@ -510,10 +510,11 @@ export async function listTablesWithStatus(): Promise<TableWithStatus[]> {
   const client = getClient()
   const result = await client.execute(
     `SELECT t.id, t.name, t.seats, t.pos_x, t.pos_y, t.floor, t.created_at,
-            CASE WHEN o.id IS NOT NULL THEN 'occupied' ELSE 'free' END as status,
-            o.id as order_id
+            CASE WHEN COUNT(o.id) > 0 THEN 'occupied' ELSE 'free' END as status,
+            MAX(o.id) as order_id
      FROM tables t
      LEFT JOIN orders o ON o.table_id = t.id AND o.status = 'open'
+     GROUP BY t.id
      ORDER BY t.name`
   )
 
@@ -528,11 +529,12 @@ export async function listTablesForFloorMap(): Promise<TableFloorMapItem[]> {
   const client = getClient()
   const result = await client.execute(
     `SELECT t.id, t.name, t.seats, t.pos_x, t.pos_y, t.floor, t.created_at,
-            CASE WHEN o.id IS NOT NULL THEN 'occupied' ELSE 'free' END as status,
-            o.id as order_id,
-            o.created_at as order_created_at
+            CASE WHEN COUNT(o.id) > 0 THEN 'occupied' ELSE 'free' END as status,
+            MAX(o.id) as order_id,
+            MIN(o.created_at) as order_created_at
      FROM tables t
      LEFT JOIN orders o ON o.table_id = t.id AND o.status = 'open'
+     GROUP BY t.id
      ORDER BY t.floor, t.name`
   )
 
