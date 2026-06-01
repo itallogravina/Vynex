@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { VYNEX_VERSION } from '@vynex/shared'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ServerUrlProvider } from './context/ServerUrlContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { I18nProvider, useTranslation } from './context/I18nContext'
 import { useConnectionStatus } from './hooks/useConnectionStatus'
+import { useOfflineQueue } from './hooks/useOfflineQueue'
+import { useServerUrl } from './context/ServerUrlContext'
 import LoginScreen from './screens/LoginScreen'
 import { OrderScreen } from './screens/OrderScreen'
 import KitchenScreen from './screens/KitchenScreen'
@@ -22,6 +24,7 @@ type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'floor-ma
 function AppShell() {
   const { user, logout } = useAuth()
   const { t } = useTranslation()
+  const { serverUrl } = useServerUrl()
   const role = user?.role ?? ''
 
   const ALL_NAV: { id: ScreenType; label: string; roles: string[] }[] = [
@@ -39,6 +42,9 @@ function AppShell() {
   const visibleNav = ALL_NAV.filter(n => n.roles.includes(role))
   const [currentScreen, setCurrentScreen] = useState<ScreenType>(() => visibleNav[0]?.id ?? 'order')
   const { status } = useConnectionStatus()
+  const { queueCount, flush } = useOfflineQueue(serverUrl, user?.id)
+
+  useEffect(() => { if (status === 'connected') flush() }, [status, flush])
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -71,6 +77,11 @@ function AppShell() {
           <span className="conn-label">
             {status === 'connected' ? t('queue.connected') : status === 'disconnected' ? t('queue.offline') : '…'}
           </span>
+          {queueCount > 0 && (
+            <span className="queue-badge" title={`${queueCount} pedido(s) aguardando sincronização`}>
+              {queueCount}
+            </span>
+          )}
           {user && (
             <button className="logout-btn" onClick={logout} title={`${user.name} (${user.role})`}>
               {user.name}

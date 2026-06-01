@@ -409,3 +409,48 @@
     grid-template-columns: 1fr;
   }
 }
+
+.offline-banner {
+  background: #78350f;
+  color: #fef3c7;
+  border: 1px solid #b45309;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.draft-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn-queue {
+  flex: 1;
+  padding: 10px;
+  background: #b45309;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-queue:disabled {
+  background: #4a2506;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.btn-discard {
+  padding: 10px 16px;
+  background: #3a1a1a;
+  border: 1px solid #8b2020;
+  border-radius: 6px;
+  color: #e05050;
+  font-size: 13px;
+  cursor: pointer;
+}

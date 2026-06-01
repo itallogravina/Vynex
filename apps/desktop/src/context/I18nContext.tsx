@@ -153,7 +153,9 @@ function resolve(dict: NestedRecord, key: string): string {
   let cur: string | NestedRecord = dict
   for (const part of parts) {
     if (typeof cur !== 'object' || cur === null) return key
-    cur = cur[part]
+    const next: string | NestedRecord | undefined = cur[part]
+    if (next === undefined) return key
+    cur = next
   }
   return typeof cur === 'string' ? cur : key
 }

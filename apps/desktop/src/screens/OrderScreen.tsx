@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react'
-import { Table, MenuItem, OrderRoutingMode, ItemStatus, Priority } from '@vynex/shared'
+import { Table, MenuItem, OrderRoutingMode, ItemStatus, Priority, AddOrderItemRequest } from '@vynex/shared'
 import { useOrder } from '../hooks/useOrder'
+import { useConnectionStatus } from '../hooks/useConnectionStatus'
+import { useOfflineQueue } from '../hooks/useOfflineQueue'
+import { useAuth } from '../context/AuthContext'
+import { useServerUrl } from '../context/ServerUrlContext'
 import { QuickOrderPopover } from '../components/QuickOrderPopover'
 import TableOpsModal from '../components/TableOpsModal'
 import '../styles/OrderScreen.css'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+type DraftItem = AddOrderItemRequest & { menu_item: MenuItem }
 
 export function OrderScreen() {
+  const { serverUrl } = useServerUrl()
+  const { user } = useAuth()
+  const { status } = useConnectionStatus()
+  const { queueOrder, flush } = useOfflineQueue(serverUrl, user?.id)
+
   const [tables, setTables] = useState<Table[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [selectedTable, setSelectedTable] = useState<string>('')
@@ -15,6 +24,11 @@ export function OrderScreen() {
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Offline draft
+  const [offlineDraft, setOfflineDraft] = useState<{
+    table_id: string; routing_mode: OrderRoutingMode; items: DraftItem[]
+  } | null>(null)
 
   // Quick order popover
   const [popoverItem, setPopoverItem] = useState<MenuItem | null>(null)
@@ -25,10 +39,12 @@ export function OrderScreen() {
 
   const { order, items, error: orderError, createOrder, addItem } = useOrder()
 
+  useEffect(() => { if (status === 'connected') flush() }, [status, flush])
+
   useEffect(() => {
     const fetchTables = async () => {
       try {
-        const res = await fetch(`${API_URL}/tables`)
+        const res = await fetch(`${serverUrl}/tables`)
         if (!res.ok) throw new Error('Failed to load tables')
         setTables(await res.json())
       } catch (err) {
@@ -38,7 +54,7 @@ export function OrderScreen() {
 
     const fetchMenuItems = async () => {
       try {
-        const res = await fetch(`${API_URL}/menu-items?time_filter=1`)
+        const res = await fetch(`${serverUrl}/menu-items?time_filter=1`)
         if (!res.ok) throw new Error('Failed to load menu items')
         setMenuItems(await res.json())
       } catch (err) {
@@ -48,10 +64,14 @@ export function OrderScreen() {
 
     fetchTables()
     fetchMenuItems()
-  }, [])
+  }, [serverUrl])
 
   const handleCreateOrder = async () => {
     if (!selectedTable) return
+    if (status === 'disconnected') {
+      setOfflineDraft({ table_id: selectedTable, routing_mode: routingMode, items: [] })
+      return
+    }
     setLoading(true)
     try {
       await createOrder(selectedTable, routingMode)
@@ -62,6 +82,17 @@ export function OrderScreen() {
 
   const handleQuickAdd = async (quantity: number, notes: string, priority: Priority, variations: string[]) => {
     if (!popoverItem) return
+    if (offlineDraft) {
+      const draftItem: DraftItem = { menu_item_id: popoverItem.id, quantity, priority, menu_item: popoverItem }
+      if (notes) draftItem.notes = notes
+      if (variations.length) draftItem.variations = variations
+      setOfflineDraft(prev => prev
+        ? { ...prev, items: [...prev.items, draftItem] }
+        : null)
+      setPopoverItem(null)
+      setPopoverAnchor(null)
+      return
+    }
     try {
       await addItem(popoverItem, quantity, notes || undefined, priority, variations.length ? variations : undefined)
     } catch {
@@ -70,6 +101,18 @@ export function OrderScreen() {
       setPopoverItem(null)
       setPopoverAnchor(null)
     }
+  }
+
+  const handleQueueDraft = () => {
+    if (!offlineDraft || !user) return
+    const ok = queueOrder({
+      user_id: user.id,
+      table_id: offlineDraft.table_id,
+      routing_mode: offlineDraft.routing_mode,
+      items: offlineDraft.items.map(({ menu_item: _m, ...r }) => r),
+    })
+    if (ok) setOfflineDraft(null)
+    else setFetchError('Fila cheia — máximo 10 pedidos offline por garçom')
   }
 
   const openPopover = (e: React.MouseEvent<HTMLDivElement>, item: MenuItem) => {
@@ -96,6 +139,92 @@ export function OrderScreen() {
       case ItemStatus.BILLED:     return '#6b7280'
       default: return '#gray'
     }
+  }
+
+  if (offlineDraft) {
+    const draftTable = tables.find(t => t.id === offlineDraft.table_id)
+    return (
+      <div className="order-screen">
+        <div className="offline-banner">
+          ⚠ Você está offline — rascunho local (Mesa: {draftTable?.name ?? offlineDraft.table_id})
+        </div>
+        <div className="order-layout">
+          <div className="menu-panel">
+            <h3>Cardápio <span className="menu-hint">(clique para adicionar)</span></h3>
+            <input
+              type="text"
+              placeholder="Buscar itens..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <div className="menu-items">
+              {filteredItems.map(item => (
+                <div
+                  key={item.id}
+                  className={`menu-item-card${item.eightysixed_at ? ' card-eightysixed' : ''}`}
+                  onClick={(e) => !item.eightysixed_at && openPopover(e, item)}
+                  style={{ cursor: item.eightysixed_at ? 'not-allowed' : 'pointer' }}
+                >
+                  <div className="item-header">
+                    <span className="item-name">
+                      {item.name}
+                      {item.eightysixed_at && <span className="item-badge-86">86'd</span>}
+                    </span>
+                    <span className="item-price">R$ {item.price.toFixed(2)}</span>
+                  </div>
+                  <span className="item-zone">{item.routing_zone}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="order-summary">
+            <h3>Rascunho Offline</h3>
+            <div className="order-items">
+              {offlineDraft.items.length === 0 ? (
+                <p className="empty-message">Nenhum item adicionado</p>
+              ) : (
+                offlineDraft.items.map((item, i) => (
+                  <div key={i} className="summary-item">
+                    <div className="summary-item-header">
+                      <span className="summary-item-name">{item.menu_item.name}</span>
+                      <span>×{item.quantity}</span>
+                    </div>
+                    <div className="summary-item-details">
+                      <span>R$ {(item.menu_item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {offlineDraft.items.length > 0 && (
+              <div className="order-total">
+                <strong>
+                  Total: R$ {offlineDraft.items.reduce((sum, i) => sum + i.menu_item.price * i.quantity, 0).toFixed(2)}
+                </strong>
+              </div>
+            )}
+            <div className="draft-actions">
+              <button className="btn-queue" onClick={handleQueueDraft} disabled={offlineDraft.items.length === 0}>
+                Enviar quando online
+              </button>
+              <button className="btn-discard" onClick={() => setOfflineDraft(null)}>
+                Descartar
+              </button>
+            </div>
+            {fetchError && <div className="order-error">{fetchError}</div>}
+          </div>
+        </div>
+        {popoverItem && popoverAnchor && (
+          <QuickOrderPopover
+            item={popoverItem}
+            anchorEl={popoverAnchor}
+            onAdd={handleQuickAdd}
+            onClose={() => { setPopoverItem(null); setPopoverAnchor(null) }}
+          />
+        )}
+      </div>
+    )
   }
 
   if (!order) {

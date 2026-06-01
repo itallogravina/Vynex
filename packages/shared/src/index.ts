@@ -345,6 +345,20 @@ export type ShiftSummaryReport = {
 }
 
 // ============================================================================
+// OFFLINE ORDER QUEUE TYPES
+// ============================================================================
+
+export type OfflineOrderBundle = {
+  id: string
+  user_id: string
+  table_id: string
+  routing_mode: OrderRoutingMode
+  items: AddOrderItemRequest[]
+  queued_at: string
+  attempt: number
+}
+
+// ============================================================================
 // WEBSOCKET EVENT TYPES
 // ============================================================================
 

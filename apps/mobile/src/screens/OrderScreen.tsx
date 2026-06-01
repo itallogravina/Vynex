@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, StyleSheet } from 'react-native'
+import * as Network from 'expo-network'
 import {
   Table,
   MenuItem,
@@ -8,7 +9,9 @@ import {
   Priority,
   Order,
   OrderItem,
+  AddOrderItemRequest,
 } from '@vynex/shared'
+import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import QuickOrderPopover from '../components/QuickOrderPopover'
 
 const API_URL = 'http://localhost:3000'
@@ -19,13 +22,30 @@ type OrderItemWithMenu = OrderItem & {
   live_status?: string
 }
 
+type DraftItem = AddOrderItemRequest & { name: string; price: number }
+
+async function isServerReachable(): Promise<boolean> {
+  try {
+    const net = await Network.getNetworkStateAsync()
+    if (!net.isConnected) return false
+    const r = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(3000) })
+    return r.ok
+  } catch { return false }
+}
+
 export default function OrderScreen() {
+  const { queueOrder, queueCount, flush } = useOfflineQueue(API_URL, undefined)
+
   const [tables, setTables] = useState<Table[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [selectedTable, setSelectedTable] = useState<string>('')
   const [routingMode, setRoutingMode] = useState<OrderRoutingMode>(OrderRoutingMode.MANUAL)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [offlineDraft, setOfflineDraft] = useState<{
+    table_id: string; routing_mode: OrderRoutingMode; items: DraftItem[]
+  } | null>(null)
 
   const [order, setOrder] = useState<Order | null>(null)
   const [orderItems, setOrderItems] = useState<OrderItemWithMenu[]>([])
@@ -114,11 +134,24 @@ export default function OrderScreen() {
     )
   }
 
+  useEffect(() => {
+    if (queueCount === 0) return
+    const id = setInterval(async () => {
+      if (await isServerReachable()) { flush() }
+    }, 10000)
+    return () => clearInterval(id)
+  }, [queueCount, flush])
+
   const handleCreateOrder = async () => {
     if (!selectedTable) return
     setLoading(true)
     setError(null)
     try {
+      const reachable = await isServerReachable()
+      if (!reachable) {
+        setOfflineDraft({ table_id: selectedTable, routing_mode: routingMode, items: [] })
+        return
+      }
       const res = await fetch(`${API_URL}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,9 +184,17 @@ export default function OrderScreen() {
     note: string
     priority: Priority
   }) => {
-    if (!order) return
     const menuItem = menuItems.find(m => m.id === productId)
     if (!menuItem) return
+
+    if (offlineDraft) {
+      const draftItem: DraftItem = { menu_item_id: productId, quantity: qty, priority, name: menuItem.name, price: menuItem.price }
+      if (note) draftItem.notes = note
+      setOfflineDraft(prev => prev ? { ...prev, items: [...prev.items, draftItem] } : null)
+      return
+    }
+
+    if (!order) return
 
     try {
       const res = await fetch(`${API_URL}/orders/${order.id}/items`, {
@@ -177,6 +218,24 @@ export default function OrderScreen() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add item')
     }
+  }
+
+  const handleQueueDraft = async () => {
+    if (!offlineDraft) return
+    const ok = await queueOrder({
+      user_id: 'mobile',
+      table_id: offlineDraft.table_id,
+      routing_mode: offlineDraft.routing_mode,
+      items: offlineDraft.items.map(item => {
+        const r: AddOrderItemRequest = { menu_item_id: item.menu_item_id, quantity: item.quantity }
+        if (item.notes) r.notes = item.notes
+        if (item.priority) r.priority = item.priority
+        if (item.variations) r.variations = item.variations
+        return r
+      }),
+    })
+    if (ok) setOfflineDraft(null)
+    else setError('Fila cheia — máximo 10 pedidos offline')
   }
 
   const handleBackToTables = () => {
@@ -204,6 +263,81 @@ export default function OrderScreen() {
       default:
         return '#999'
     }
+  }
+
+  if (offlineDraft) {
+    const draftTable = tables.find(t => t.id === offlineDraft.table_id)
+    return (
+      <ScrollView style={styles.container}>
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            Voce esta offline — rascunho local (Mesa: {draftTable?.name ?? offlineDraft.table_id})
+            {queueCount > 0 ? `  •  ${queueCount} na fila` : ''}
+          </Text>
+        </View>
+
+        <QuickOrderPopover
+          item={popoverItem}
+          onClose={() => setPopoverItem(null)}
+          onAddItem={handleAddItem}
+        />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Rascunho</Text>
+          {offlineDraft.items.length === 0 ? (
+            <Text style={styles.emptyMessage}>Nenhum item adicionado</Text>
+          ) : (
+            <FlatList
+              data={offlineDraft.items}
+              keyExtractor={(_, i) => String(i)}
+              renderItem={({ item }) => (
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryItemHeader}>
+                    <Text style={styles.summaryItemName}>{item.name}</Text>
+                    <Text>x{item.quantity}</Text>
+                  </View>
+                  <Text>R$ {(item.price * item.quantity).toFixed(2)}</Text>
+                </View>
+              )}
+              scrollEnabled={false}
+            />
+          )}
+          <View style={styles.draftActions}>
+            <TouchableOpacity
+              style={[styles.queueButton, offlineDraft.items.length === 0 && styles.buttonDisabled]}
+              onPress={handleQueueDraft}
+              disabled={offlineDraft.items.length === 0}
+            >
+              <Text style={styles.createButtonText}>Enviar quando online</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.discardButton} onPress={() => setOfflineDraft(null)}>
+              <Text style={styles.discardButtonText}>Descartar</Text>
+            </TouchableOpacity>
+          </View>
+          {error && <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View>}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Adicionar itens</Text>
+          <FlatList
+            data={menuItems.filter(i => !i.eightysixed_at)}
+            keyExtractor={item => item.id}
+            renderItem={({ item: menuItem }) => (
+              <TouchableOpacity
+                style={styles.menuItemButton}
+                onPress={() => setPopoverItem(menuItem)}
+              >
+                <View style={styles.menuItemContent}>
+                  <Text style={styles.menuItemName}>{menuItem.name}</Text>
+                  <Text style={styles.menuItemPrice}>R$ {menuItem.price.toFixed(2)}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            scrollEnabled={false}
+          />
+        </View>
+      </ScrollView>
+    )
   }
 
   if (!order) {
@@ -681,12 +815,51 @@ const styles = StyleSheet.create({
   backButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: '#ef4444', // Vermelho/coral para ação de saída/cancelamento
+    backgroundColor: '#ef4444',
     borderRadius: 4,
   },
   backButtonText: {
     color: 'white',
     fontWeight: '600',
     fontSize: 12,
+  },
+  offlineBanner: {
+    backgroundColor: '#78350f',
+    borderWidth: 1,
+    borderColor: '#b45309',
+    borderRadius: 6,
+    padding: 10,
+    margin: 16,
+    marginBottom: 0,
+  },
+  offlineBannerText: {
+    color: '#fef3c7',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  draftActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  queueButton: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: '#b45309',
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  discardButton: {
+    padding: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#8b2020',
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  discardButtonText: {
+    color: '#e05050',
+    fontWeight: '600',
+    fontSize: 13,
   },
 })

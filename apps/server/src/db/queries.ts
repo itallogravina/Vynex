@@ -1120,13 +1120,13 @@ export async function listVariationGroups(menuItemId: string): Promise<Variation
   return Promise.all(groups.rows.map(async row => {
     const opts = await client.execute({
       sql: 'SELECT * FROM item_variation_options WHERE group_id = ? ORDER BY created_at',
-      args: [row.id],
+      args: [row.id as string],
     })
     return {
       id: row.id as string,
       menu_item_id: row.menu_item_id as string,
       name: row.name as string,
-      required: row.required === 1 || row.required === true,
+      required: row.required === 1,
       options: opts.rows.map(o => ({
         id: o.id as string,
         group_id: o.group_id as string,
