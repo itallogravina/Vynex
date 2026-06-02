@@ -231,6 +231,7 @@ function mapOrderItem(row: Record<string, unknown>): OrderItem {
     discount_amount: (row.discount_amount as number) ?? 0,
     promotion_id: (row.promotion_id as string) ?? null,
     combo_group_id: (row.combo_group_id as string) ?? null,
+    routed_at: (row.routed_at as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -259,7 +260,7 @@ export async function getQueueByZone(routingZone: RoutingZone): Promise<QueueIte
           JOIN menu_items mi ON oi.menu_item_id = mi.id
           JOIN orders o ON oi.order_id = o.id
           JOIN tables t ON o.table_id = t.id
-          WHERE mi.routing_zone = ? AND o.status = 'open'
+          WHERE mi.routing_zone = ? AND o.status = 'open' AND oi.routed_at IS NOT NULL
           ORDER BY
             CASE oi.priority WHEN 'vip' THEN 0 WHEN 'urgent' THEN 1 ELSE 2 END,
             oi.status,
@@ -1829,4 +1830,75 @@ export async function addItemToComboBundle(
 export async function removeItemFromComboBundle(itemId: string): Promise<void> {
   const client = getClient()
   await client.execute({ sql: 'DELETE FROM combo_bundle_items WHERE id = ?', args: [itemId] })
+}
+
+// ============================================================================
+// ORDER ROUTING — EXPLICIT CONFIRM STEP
+// ============================================================================
+
+export type PendingRoutingItem = {
+  id: string
+  menu_item_name: string
+  routing_zone: RoutingZone
+  table_name: string
+  quantity: number
+}
+
+export async function routePendingItems(
+  orderId: string
+): Promise<{ routed_count: number; zones: RoutingZone[]; items: PendingRoutingItem[] }> {
+  const client = getClient()
+
+  const result = await client.execute({
+    sql: `SELECT oi.id, oi.quantity, mi.name as mi_name, mi.routing_zone, t.name as table_name
+          FROM order_items oi
+          JOIN menu_items mi ON oi.menu_item_id = mi.id
+          JOIN orders o ON oi.order_id = o.id
+          JOIN tables t ON o.table_id = t.id
+          WHERE oi.order_id = ? AND oi.routed_at IS NULL`,
+    args: [orderId],
+  })
+
+  if (result.rows.length === 0) {
+    return { routed_count: 0, zones: [], items: [] }
+  }
+
+  const items: PendingRoutingItem[] = result.rows.map(row => ({
+    id: row.id as string,
+    menu_item_name: row.mi_name as string,
+    routing_zone: row.routing_zone as RoutingZone,
+    table_name: row.table_name as string,
+    quantity: row.quantity as number,
+  }))
+
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: 'UPDATE order_items SET routed_at = ? WHERE order_id = ? AND routed_at IS NULL',
+    args: [now, orderId],
+  })
+
+  const zonesSet = new Set(items.map(i => i.routing_zone))
+  return { routed_count: items.length, zones: Array.from(zonesSet), items }
+}
+
+export async function cancelOrder(orderId: string): Promise<Order> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: `UPDATE orders SET status = 'closed', payment_method = 'cancelled', closed_at = ?, updated_at = ? WHERE id = ?`,
+    args: [now, now, orderId],
+  })
+  const result = await client.execute({ sql: 'SELECT * FROM orders WHERE id = ?', args: [orderId] })
+  const row = result.rows[0]!
+  return {
+    id: row.id as string,
+    table_id: row.table_id as string,
+    status: row.status as Order['status'],
+    routing_mode: row.routing_mode as OrderRoutingMode,
+    payment_method: row.payment_method as string | null ?? undefined,
+    opened_by: row.opened_by as string | null ?? undefined,
+    closed_at: row.closed_at as string | null ?? undefined,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  } as Order
 }

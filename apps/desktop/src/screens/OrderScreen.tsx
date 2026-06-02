@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Table, MenuItem, OrderRoutingMode, ItemStatus, Priority, AddOrderItemRequest, ComboBundle } from '@vynex/shared'
 import { useOrder } from '../hooks/useOrder'
+import { OrderReviewModal } from '../components/OrderReviewModal'
 import { useConnectionStatus } from '../hooks/useConnectionStatus'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { useAuth } from '../context/AuthContext'
@@ -39,7 +40,8 @@ export function OrderScreen() {
   // Table ops modal
   const [showTableOps, setShowTableOps] = useState(false)
 
-  const { order, items, error: orderError, createOrder, addItem } = useOrder()
+  const { order, items, error: orderError, createOrder, addItem, confirmOrder, cancelOrder, refreshItems, unroutedCount } = useOrder()
+  const [showReviewModal, setShowReviewModal] = useState(false)
 
   useEffect(() => { if (status === 'connected') flush() }, [status, flush])
 
@@ -140,6 +142,8 @@ export function OrderScreen() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setFetchError(data.error || 'Failed to add combo')
+      } else {
+        await refreshItems()
       }
     } catch {
       setFetchError('Failed to add combo')
@@ -306,6 +310,15 @@ export function OrderScreen() {
           <button className="table-ops-btn" onClick={() => setShowTableOps(true)}>
             ⇄ Mesas
           </button>
+          <button
+            className="review-btn"
+            onClick={() => setShowReviewModal(true)}
+            disabled={unroutedCount === 0}
+          >
+            Revisar Pedido{unroutedCount > 0 && (
+              <span className="review-badge">{unroutedCount}</span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -382,6 +395,10 @@ export function OrderScreen() {
                       <span className="summary-item-name">
                         {item.menu_item.name}
                         {isCombo && <span className="item-badge-combo">COMBO</span>}
+                        {item.routed_at
+                          ? <span className="item-badge-routed">Enviado</span>
+                          : <span className="item-badge-pending">Aguardando</span>
+                        }
                       </span>
                       <span
                         className="summary-item-status"
@@ -433,6 +450,23 @@ export function OrderScreen() {
           tables={tables}
           onClose={() => setShowTableOps(false)}
           onSuccess={() => { setShowTableOps(false); window.location.reload() }}
+        />
+      )}
+
+      {showReviewModal && order && (
+        <OrderReviewModal
+          order={order}
+          items={items.filter(i => !i.routed_at)}
+          onClose={() => setShowReviewModal(false)}
+          onConfirm={async () => {
+            await confirmOrder()
+            setShowReviewModal(false)
+          }}
+          onCancel={async () => {
+            await cancelOrder()
+            setShowReviewModal(false)
+            window.location.reload()
+          }}
         />
       )}
     </div>

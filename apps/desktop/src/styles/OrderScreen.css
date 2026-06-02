@@ -460,6 +460,7 @@
   margin-top: 1rem;
   border-top: 1px solid rgba(255,255,255,0.12);
   padding-top: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .combo-section-title {
@@ -478,7 +479,7 @@
 }
 
 .combo-order-card {
-  background: rgba(142, 68, 173, 0.12);
+  background: rgba(16, 16, 17, 0.12);
   border: 1px solid rgba(142, 68, 173, 0.3);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
@@ -502,7 +503,7 @@
 .combo-order-name {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #e9d5ff;
+  color: #9635ff;
 }
 
 .combo-order-price {
@@ -513,7 +514,7 @@
 
 .combo-order-items {
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.5);
+  color: rgba(46, 42, 42, 0.5);
   display: block;
   margin-top: 0.15rem;
 }
@@ -547,4 +548,64 @@
   font-size: 0.75rem;
   color: #4ade80;
   font-weight: 700;
+}
+
+/* Review & Send button */
+.review-btn {
+  padding: 7px 13px;
+  background: #ea580c;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.review-btn:hover:not(:disabled) { background: #c2410c; }
+.review-btn:disabled { background: #4a2c10; color: #888; cursor: not-allowed; }
+
+.review-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  background: #fff;
+  color: #ea580c;
+  border-radius: 9px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0 4px;
+}
+
+/* Routed / pending badges in order summary */
+.item-badge-routed {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #4ade80;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+.item-badge-pending {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  background: rgba(234, 88, 12, 0.15);
+  border: 1px solid rgba(234, 88, 12, 0.4);
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fb923c;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
 }

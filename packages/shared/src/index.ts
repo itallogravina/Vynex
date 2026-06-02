@@ -73,6 +73,7 @@ export type OrderItem = {
   discount_amount?: number
   promotion_id?: string | null
   combo_group_id?: string | null
+  routed_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -355,6 +356,11 @@ export type AddComboItemRequest = {
 
 export type AddComboToOrderRequest = {
   combo_id: string
+}
+
+export type ConfirmRoutingResponse = {
+  routed_count: number
+  zones: RoutingZone[]
 }
 
 export type UpdateMenuItemRequest = {

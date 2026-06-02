@@ -13,6 +13,7 @@ import {
 } from '@vynex/shared'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import QuickOrderPopover from '../components/QuickOrderPopover'
+import OrderReviewModal from '../components/OrderReviewModal'
 
 const API_URL = 'http://localhost:3000'
 const WS_URL = 'ws://localhost:3000/ws'
@@ -51,6 +52,7 @@ export default function OrderScreen() {
   const [orderItems, setOrderItems] = useState<OrderItemWithMenu[]>([])
   const [popoverItem, setPopoverItem] = useState<MenuItem | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [reviewVisible, setReviewVisible] = useState(false)
 
   const queueItemsRef = useRef<Map<string, any>>(new Map())
   const wsRef = useRef<WebSocket | null>(null)
@@ -239,10 +241,48 @@ export default function OrderScreen() {
   }
 
   const handleBackToTables = () => {
-  setOrder(null)
-  setOrderItems([])
-  setSearchTerm('') // Opcional: limpa a busca de itens ao sair
-}
+    setOrder(null)
+    setOrderItems([])
+    setSearchTerm('')
+  }
+
+  const handleConfirmRouting = async () => {
+    if (!order) return
+    const res = await fetch(`${API_URL}/orders/${order.id}/confirm-routing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || 'Failed to confirm routing')
+    }
+    // Refresh items so routed_at is populated
+    const orderRes = await fetch(`${API_URL}/orders/${order.id}`)
+    if (orderRes.ok) {
+      const data = await orderRes.json()
+      setOrderItems(
+        (data.items as OrderItemWithMenu[]).map(i => ({
+          ...i,
+          live_status: queueItemsRef.current.get(i.id)?.status ?? i.status,
+        }))
+      )
+    }
+    setReviewVisible(false)
+  }
+
+  const handleCancelOrder = async () => {
+    if (!order) return
+    const res = await fetch(`${API_URL}/orders/${order.id}/cancel`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || 'Failed to cancel order')
+    }
+    setReviewVisible(false)
+    handleBackToTables()
+  }
 
   const filteredItems = menuItems.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -442,16 +482,39 @@ export default function OrderScreen() {
           </Text>
           <Text style={styles.orderInfo}>Mode: {order.routing_mode.toUpperCase()}</Text>
         </View>
-        {/* Botão de Voltar para Mesas */}
+        <View style={styles.headerActions}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackToTables}>
             <Text style={styles.backButtonText}>Mesas</Text>
           </TouchableOpacity>
+          {(() => {
+            const unroutedCount = orderItems.filter(i => !i.routed_at).length
+            return (
+              <TouchableOpacity
+                style={[styles.reviewButton, unroutedCount === 0 && styles.reviewButtonDisabled]}
+                onPress={() => setReviewVisible(true)}
+                disabled={unroutedCount === 0}
+              >
+                <Text style={styles.reviewButtonText}>
+                  Revisar{unroutedCount > 0 ? ` (${unroutedCount})` : ''}
+                </Text>
+              </TouchableOpacity>
+            )
+          })()}
+        </View>
       </View>
 
       <QuickOrderPopover
         item={popoverItem}
         onClose={() => setPopoverItem(null)}
         onAddItem={handleAddItem}
+      />
+
+      <OrderReviewModal
+        visible={reviewVisible}
+        items={orderItems.filter(i => !i.routed_at)}
+        onClose={() => setReviewVisible(false)}
+        onConfirm={handleConfirmRouting}
+        onCancel={handleCancelOrder}
       />
 
       <ScrollView style={styles.scrollView}>
@@ -812,6 +875,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
   backButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -819,6 +887,20 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   backButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  reviewButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#ea580c',
+    borderRadius: 4,
+  },
+  reviewButtonDisabled: {
+    backgroundColor: '#4a2c10',
+  },
+  reviewButtonText: {
     color: 'white',
     fontWeight: '600',
     fontSize: 12,

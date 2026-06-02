@@ -7,6 +7,7 @@ import {
   Priority,
   RoutingZone,
   AddOrderItemRequest,
+  ConfirmRoutingResponse,
 } from '@vynex/shared'
 import { useServerUrl } from '../context/ServerUrlContext'
 
@@ -95,11 +96,66 @@ export function useOrder() {
     [order, serverUrl]
   )
 
-  const confirmOrder = useCallback(async () => {
-    // For auto mode, items are added all at once when order is created
-    // This is a placeholder for future confirmation logic
-    return order
-  }, [order])
+  const refreshItems = useCallback(async () => {
+    if (!order) return
+    const res = await fetch(`${serverUrl}/orders/${order.id}`)
+    if (res.ok) {
+      const data = await res.json()
+      setItems(
+        (data.items as (OrderItem & { menu_item: MenuItem })[]).map(i => ({
+          ...i,
+          live_status: queueItemsRef.current.get(i.id)?.status ?? i.status,
+        }))
+      )
+    }
+  }, [order, serverUrl])
+
+  const confirmOrder = useCallback(async (): Promise<ConfirmRoutingResponse> => {
+    if (!order) throw new Error('No order')
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${serverUrl}/orders/${order.id}/confirm-routing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to confirm routing')
+      }
+      const result = await response.json()
+      await refreshItems()
+      return result
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(msg)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [order, serverUrl, refreshItems])
+
+  const cancelOrder = useCallback(async (): Promise<void> => {
+    if (!order) throw new Error('No order')
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${serverUrl}/orders/${order.id}/cancel`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to cancel order')
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(msg)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [order, serverUrl])
 
   const subscribeToQueues = useCallback((_newOrder: Order) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -171,6 +227,8 @@ export function useOrder() {
     }
   }, [order, subscribeToQueues])
 
+  const unroutedCount = items.filter(i => !i.routed_at).length
+
   return {
     order,
     items,
@@ -179,5 +237,8 @@ export function useOrder() {
     createOrder,
     addItem,
     confirmOrder,
+    cancelOrder,
+    refreshItems,
+    unroutedCount,
   }
 }

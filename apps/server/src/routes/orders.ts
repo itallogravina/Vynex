@@ -16,6 +16,8 @@ import {
   getVariationDeltaSum,
   getActivePromotionForItem,
   getComboBundleById,
+  routePendingItems,
+  cancelOrder,
 } from '../db/queries'
 import {
   CreateOrderRequest,
@@ -135,12 +137,6 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         await addOrderItemVariations(item.id, variations)
       }
 
-      if (order.routing_mode === 'auto') {
-        const table = await getTable(order.table_id)
-        broadcastItemAdded(item.id, menuItem.name, menuItem.routing_zone, table?.name || 'Unknown', quantity)
-        broadcastQueueSnapshot(menuItem.routing_zone)
-      }
-
       return reply.status(201).send(item)
     }
   )
@@ -174,7 +170,6 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
       const { v4: uuidV4 } = require('uuid')
       const comboGroupId = uuidV4()
-      const table = await getTable(order.table_id)
       const createdItems = []
 
       for (const ci of combo.items) {
@@ -190,14 +185,6 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           proportionalFinalPrice, discountPerUnit, null, comboGroupId
         )
         createdItems.push(item)
-
-        if (order.routing_mode === 'auto') {
-          broadcastItemAdded(
-            item.id, ci.menu_item.name, ci.menu_item.routing_zone,
-            table?.name || 'Unknown', ci.quantity
-          )
-          broadcastQueueSnapshot(ci.menu_item.routing_zone)
-        }
 
         void individualTotal // suppress unused warning
       }
@@ -262,5 +249,35 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     const queue = await getQueueByZone(routingZone as RoutingZone)
     return reply.send(queue)
+  })
+
+  app.post<{ Params: { id: string } }>('/orders/:id/confirm-routing', async (request, reply) => {
+    const { id } = request.params
+    const order = await getOrder(id)
+    if (!order) return reply.status(404).send({ error: 'Order not found' })
+    if (order.status === 'closed') return reply.status(400).send({ error: 'Order is already closed' })
+
+    const { routed_count, zones, items } = await routePendingItems(id)
+
+    for (const item of items) {
+      broadcastItemAdded(item.id, item.menu_item_name, item.routing_zone, item.table_name, item.quantity)
+    }
+    for (const zone of zones) {
+      broadcastQueueSnapshot(zone)
+    }
+
+    return reply.send({ routed_count, zones })
+  })
+
+  app.patch<{ Params: { id: string } }>('/orders/:id/cancel', async (request, reply) => {
+    const { id } = request.params
+    const order = await getOrder(id)
+    if (!order) return reply.status(404).send({ error: 'Order not found' })
+    if (order.status === 'closed') return reply.status(400).send({ error: 'Order is already closed' })
+
+    const cancelled = await cancelOrder(id)
+    broadcastOrderClosed(id, order.table_id)
+    broadcastAllQueueSnapshots()
+    return reply.send(cancelled)
   })
 }
