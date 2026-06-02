@@ -41,7 +41,7 @@ export async function registerTableRoutes(app: FastifyInstance): Promise<void> {
     '/tables/:id',
     async (request, reply) => {
       const { id } = request.params
-      const { name, seats } = request.body
+      const { name, seats, min_consumption } = request.body
 
       if (!name?.trim()) {
         return reply.status(400).send({ error: 'name is required' })
@@ -49,8 +49,11 @@ export async function registerTableRoutes(app: FastifyInstance): Promise<void> {
       if (!seats || seats < 1) {
         return reply.status(400).send({ error: 'seats must be a positive number' })
       }
+      if (min_consumption !== undefined && min_consumption !== null && min_consumption < 0) {
+        return reply.status(400).send({ error: 'min_consumption must be non-negative' })
+      }
 
-      const table = await updateTable(id, name.trim(), seats)
+      const table = await updateTable(id, name.trim(), seats, min_consumption)
       return reply.send(table)
     }
   )

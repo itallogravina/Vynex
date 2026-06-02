@@ -101,7 +101,7 @@ export async function closeOrder(orderId: string, paymentMethod: 'cash' | 'card'
 export async function listOpenOrders(): Promise<OpenOrder[]> {
   const client = getClient()
   const result = await client.execute(
-    `SELECT o.*, t.name as table_name
+    `SELECT o.*, t.name as table_name, t.min_consumption as table_min_consumption
      FROM orders o
      JOIN tables t ON o.table_id = t.id
      WHERE o.status = 'open'
@@ -123,6 +123,8 @@ export async function listOpenOrders(): Promise<OpenOrder[]> {
       items,
       total,
       split_group_id: (row.split_group_id as string) ?? undefined,
+      ...(row.tab_number != null ? { tab_number: row.tab_number as string } : {}),
+      ...(row.table_min_consumption != null ? { min_consumption: row.table_min_consumption as number } : {}),
     })
   }
   return orders
@@ -586,7 +588,7 @@ export async function listIdleTables(idleMinutes: number): Promise<TableFloorMap
 export async function getTable(tableId: string): Promise<Table | null> {
   const client = getClient()
   const result = await client.execute({
-    sql: 'SELECT id, name, seats, pos_x, pos_y, floor, created_at FROM tables WHERE id = ?',
+    sql: 'SELECT id, name, seats, pos_x, pos_y, floor, min_consumption, created_at FROM tables WHERE id = ?',
     args: [tableId],
   })
   const row = result.rows[0]
@@ -606,13 +608,21 @@ export async function createTable(venueId: string, name: string, seats: number):
   return (await getTable(id))!
 }
 
-export async function updateTable(tableId: string, name: string, seats: number): Promise<Table> {
+export async function updateTable(tableId: string, name: string, seats: number, minConsumption?: number | null): Promise<Table> {
   const client = getClient()
   await client.execute({
-    sql: 'UPDATE tables SET name = ?, seats = ? WHERE id = ?',
-    args: [name, seats, tableId],
+    sql: 'UPDATE tables SET name = ?, seats = ?, min_consumption = ? WHERE id = ?',
+    args: [name, seats, minConsumption ?? null, tableId],
   })
   return (await getTable(tableId))!
+}
+
+export async function setOrderTabNumber(orderId: string, tabNumber: string | null): Promise<void> {
+  const client = getClient()
+  await client.execute({
+    sql: 'UPDATE orders SET tab_number = ?, updated_at = ? WHERE id = ?',
+    args: [tabNumber, new Date().toISOString(), orderId],
+  })
 }
 
 export async function deleteTable(
@@ -659,6 +669,7 @@ function mapTable(row: Record<string, unknown>): Table {
     pos_x: (row.pos_x as number) ?? 0,
     pos_y: (row.pos_y as number) ?? 0,
     floor: (row.floor as number) ?? 0,
+    ...(row.min_consumption != null ? { min_consumption: row.min_consumption as number } : {}),
     created_at: row.created_at as string,
   }
 }

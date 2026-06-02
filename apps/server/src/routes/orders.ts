@@ -12,12 +12,14 @@ import {
   listTables,
   closeOrder,
   listOpenOrders,
+  setOrderTabNumber,
 } from '../db/queries'
 import {
   CreateOrderRequest,
   AddOrderItemRequest,
   UpdateItemStatusRequest,
   CloseOrderRequest,
+  SetTabNumberRequest,
   ItemStatus,
   Priority,
   RoutingZone,
@@ -153,6 +155,21 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return reply.send(item)
+    }
+  )
+
+  app.patch<{ Params: { id: string }; Body: SetTabNumberRequest }>(
+    '/orders/:id/tab-number',
+    async (request, reply) => {
+      const { id } = request.params
+      const { tab_number } = request.body
+
+      const order = await getOrder(id)
+      if (!order) return reply.status(404).send({ error: 'Order not found' })
+      if (order.status === 'closed') return reply.status(400).send({ error: 'Order is already closed' })
+
+      await setOrderTabNumber(id, tab_number)
+      return reply.send({ id, tab_number })
     }
   )
 

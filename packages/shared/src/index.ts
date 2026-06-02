@@ -92,6 +92,7 @@ export type Table = {
   pos_x: number
   pos_y: number
   floor: number
+  min_consumption?: number
   created_at: string
 }
 
@@ -152,6 +153,8 @@ export type OpenOrder = {
   items: (OrderItem & { menu_item: MenuItem })[]
   total: number
   split_group_id?: string
+  tab_number?: string
+  min_consumption?: number
 }
 
 // ============================================================================
@@ -236,6 +239,11 @@ export type CreateTableRequest = {
 export type UpdateTableRequest = {
   name: string
   seats: number
+  min_consumption?: number | null
+}
+
+export type SetTabNumberRequest = {
+  tab_number: string | null
 }
 
 export type CreateUserRequest = {

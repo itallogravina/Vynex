@@ -289,6 +289,22 @@ async function runMigrations(): Promise<void> {
       await client!.execute('ALTER TABLE orders ADD COLUMN split_group_id TEXT')
     }
   } catch { /* already exists */ }
+
+  // M6 Tab Management: tab_number on orders
+  try {
+    const ordCols3 = await client!.execute({ sql: `SELECT name FROM pragma_table_info('orders')`, args: [] })
+    if (!ordCols3.rows.some(r => r.name === 'tab_number')) {
+      await client!.execute('ALTER TABLE orders ADD COLUMN tab_number TEXT')
+    }
+  } catch { /* already exists */ }
+
+  // M6 Tab Management: min_consumption on tables
+  try {
+    const tblCols2 = await client!.execute({ sql: `SELECT name FROM pragma_table_info('tables')`, args: [] })
+    if (!tblCols2.rows.some(r => r.name === 'min_consumption')) {
+      await client!.execute('ALTER TABLE tables ADD COLUMN min_consumption REAL')
+    }
+  } catch { /* already exists */ }
 }
 
 async function seedDefaultVenue(): Promise<void> {

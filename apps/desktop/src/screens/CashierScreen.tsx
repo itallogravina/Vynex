@@ -20,6 +20,9 @@ export default function CashierScreen() {
   const [closingTableId, setClosingTableId] = useState<string | null>(null)
   const [billsError, setBillsError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [tabFilter, setTabFilter] = useState('')
+  const [pendingTabNums, setPendingTabNums] = useState<Record<string, string>>({})
+  const [savingTab, setSavingTab] = useState<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
   // Closing state
@@ -91,6 +94,22 @@ export default function CashierScreen() {
       console.error('Error closing table orders:', err)
     } finally {
       setClosingTableId(null)
+    }
+  }
+
+  const saveTabNumber = async (orderId: string, value: string) => {
+    setSavingTab(orderId)
+    try {
+      await fetch(`${API_URL}/orders/${orderId}/tab-number`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tab_number: value.trim() || null }),
+      })
+      setRefreshKey(k => k + 1)
+    } catch (err) {
+      console.error('Error saving tab number:', err)
+    } finally {
+      setSavingTab(null)
     }
   }
 
@@ -198,12 +217,22 @@ export default function CashierScreen() {
           ) : (() => {
             type BillItem = OrderItem & { menu_item: MenuItem }
             type SplitSection = { key: string; items: BillItem[]; subtotal: number }
-            type TableGroup = { table_id: string; table_name: string; orderIds: string[]; allItems: BillItem[]; total: number; hasSplits: boolean; splits: SplitSection[]; openedAt: string }
+            type TableGroup = {
+              table_id: string; table_name: string; orderIds: string[]
+              primaryOrderId: string; allItems: BillItem[]; total: number
+              hasSplits: boolean; splits: SplitSection[]; openedAt: string
+              tabNumber: string | undefined; minConsumption: number | undefined
+            }
 
             const tableMap: Record<string, TableGroup> = {}
             for (const order of openOrders) {
               if (!tableMap[order.table_id]) {
-                tableMap[order.table_id] = { table_id: order.table_id, table_name: order.table_name, orderIds: [], allItems: [], total: 0, hasSplits: false, splits: [], openedAt: order.created_at }
+                tableMap[order.table_id] = {
+                  table_id: order.table_id, table_name: order.table_name,
+                  orderIds: [], primaryOrderId: order.id, allItems: [], total: 0,
+                  hasSplits: false, splits: [], openedAt: order.created_at,
+                  tabNumber: order.tab_number, minConsumption: order.min_consumption,
+                }
               }
               const tg = tableMap[order.table_id]!
               tg.orderIds.push(order.id)
@@ -211,8 +240,9 @@ export default function CashierScreen() {
               tg.allItems.push(...order.items)
               if (order.split_group_id) tg.hasSplits = true
               if (order.created_at < tg.openedAt) tg.openedAt = order.created_at
+              if (!tg.tabNumber && order.tab_number) tg.tabNumber = order.tab_number
             }
-            const tableGroups = Object.values(tableMap)
+            let tableGroups = Object.values(tableMap)
             for (const tg of tableGroups) {
               if (tg.hasSplits) {
                 const splitMap: Record<string, SplitSection> = {}
@@ -226,62 +256,128 @@ export default function CashierScreen() {
               }
             }
 
-            return (
-              <div className="bills-grid">
-                {tableGroups.map(tg => (
-                  <div key={tg.table_id} className="bill-card">
-                    <div className="bill-header">
-                      <h2 className="bill-table">{tg.table_name}</h2>
-                      <span className="bill-time">
-                        {new Date(tg.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
+            const needle = tabFilter.trim().toLowerCase()
+            if (needle) {
+              tableGroups = tableGroups.filter(tg =>
+                tg.tabNumber?.toLowerCase().includes(needle) ||
+                tg.table_name.toLowerCase().includes(needle)
+              )
+            }
 
-                    {tg.hasSplits ? (
-                      tg.splits.map((split, idx) => (
-                        <div key={split.key} className="bill-split-section">
-                          {idx > 0 && <div className="bill-split-divider" />}
-                          <div className="bill-split-label">Conta {idx + 1}</div>
+            return (
+              <>
+                <div style={{ padding: '0.75rem 1rem 0' }}>
+                  <input
+                    className="tab-filter-input"
+                    type="text"
+                    placeholder="Filtrar por comanda / mesa…"
+                    value={tabFilter}
+                    onChange={e => setTabFilter(e.target.value)}
+                    style={{ width: '100%', maxWidth: 320, padding: '0.4rem 0.75rem', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', color: 'inherit', fontSize: '0.875rem' }}
+                  />
+                </div>
+                <div className="bills-grid">
+                  {tableGroups.length === 0 ? (
+                    <div className="empty-queue">Nenhuma comanda encontrada.</div>
+                  ) : tableGroups.map(tg => {
+                    const pendingVal = pendingTabNums[tg.primaryOrderId] ?? tg.tabNumber ?? ''
+                    const isDirty = pendingVal !== (tg.tabNumber ?? '')
+                    const belowMin = tg.minConsumption != null && tg.total < tg.minConsumption
+
+                    return (
+                      <div key={tg.table_id} className="bill-card">
+                        <div className="bill-header">
+                          <h2 className="bill-table">{tg.table_name}</h2>
+                          <span className="bill-time">
+                            {new Date(tg.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+
+                        {/* Tab number field */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                          <span style={{ fontSize: '0.75rem', opacity: 0.6, whiteSpace: 'nowrap' }}>Comanda</span>
+                          <input
+                            type="text"
+                            value={pendingVal}
+                            placeholder="—"
+                            onChange={e => setPendingTabNums(p => ({ ...p, [tg.primaryOrderId]: e.target.value }))}
+                            onBlur={() => {
+                              if (isDirty) saveTabNumber(tg.primaryOrderId, pendingVal)
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur()
+                              }
+                            }}
+                            disabled={savingTab === tg.primaryOrderId}
+                            style={{ flex: 1, minWidth: 0, padding: '0.2rem 0.5rem', borderRadius: 4, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', color: 'inherit', fontSize: '0.875rem' }}
+                          />
+                          {isDirty && (
+                            <button
+                              className="btn btn-primary"
+                              style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}
+                              onClick={() => saveTabNumber(tg.primaryOrderId, pendingVal)}
+                              disabled={savingTab === tg.primaryOrderId}
+                            >
+                              ✓
+                            </button>
+                          )}
+                        </div>
+
+                        {tg.hasSplits ? (
+                          tg.splits.map((split, idx) => (
+                            <div key={split.key} className="bill-split-section">
+                              {idx > 0 && <div className="bill-split-divider" />}
+                              <div className="bill-split-label">Conta {idx + 1}</div>
+                              <div className="bill-items">
+                                {split.items.map(item => (
+                                  <div key={item.id} className="bill-item-row">
+                                    <span className="bill-item-name">{item.quantity}× {item.menu_item.name}</span>
+                                    <span className="bill-item-price">R$ {(item.quantity * item.menu_item.price).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="bill-subtotal-row">
+                                <span>Subtotal</span>
+                                <span>R$ {split.subtotal.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
                           <div className="bill-items">
-                            {split.items.map(item => (
+                            {tg.allItems.map(item => (
                               <div key={item.id} className="bill-item-row">
                                 <span className="bill-item-name">{item.quantity}× {item.menu_item.name}</span>
                                 <span className="bill-item-price">R$ {(item.quantity * item.menu_item.price).toFixed(2)}</span>
                               </div>
                             ))}
                           </div>
-                          <div className="bill-subtotal-row">
-                            <span>Subtotal</span>
-                            <span>R$ {split.subtotal.toFixed(2)}</span>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="bill-items">
-                        {tg.allItems.map(item => (
-                          <div key={item.id} className="bill-item-row">
-                            <span className="bill-item-name">{item.quantity}× {item.menu_item.name}</span>
-                            <span className="bill-item-price">R$ {(item.quantity * item.menu_item.price).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                        )}
 
-                    <div className="bill-total-row">
-                      <span>{t('common.total')}</span>
-                      <span className="bill-total-amount">R$ {tg.total.toFixed(2)}</span>
-                    </div>
-                    <div className="bill-actions">
-                      <button className="btn btn-cash" disabled={closingTableId === tg.table_id} onClick={() => handleCloseTable(tg.table_id, tg.orderIds, 'cash')}>
-                        {closingTableId === tg.table_id ? t('cashier.closing') : t('cashier.cash')}
-                      </button>
-                      <button className="btn btn-card" disabled={closingTableId === tg.table_id} onClick={() => handleCloseTable(tg.table_id, tg.orderIds, 'card')}>
-                        {closingTableId === tg.table_id ? t('cashier.closing') : t('cashier.card')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        <div className="bill-total-row">
+                          <span>{t('common.total')}</span>
+                          <span className="bill-total-amount">R$ {tg.total.toFixed(2)}</span>
+                        </div>
+
+                        {belowMin && (
+                          <div style={{ background: 'rgba(231,76,60,0.15)', border: '1px solid rgba(231,76,60,0.5)', borderRadius: 6, padding: '0.4rem 0.75rem', fontSize: '0.8rem', color: '#e74c3c', marginBottom: '0.5rem' }}>
+                            Consumo mínimo: R$ {tg.minConsumption!.toFixed(2)} — faltam R$ {(tg.minConsumption! - tg.total).toFixed(2)}
+                          </div>
+                        )}
+
+                        <div className="bill-actions">
+                          <button className="btn btn-cash" disabled={closingTableId === tg.table_id} onClick={() => handleCloseTable(tg.table_id, tg.orderIds, 'cash')}>
+                            {closingTableId === tg.table_id ? t('cashier.closing') : t('cashier.cash')}
+                          </button>
+                          <button className="btn btn-card" disabled={closingTableId === tg.table_id} onClick={() => handleCloseTable(tg.table_id, tg.orderIds, 'card')}>
+                            {closingTableId === tg.table_id ? t('cashier.closing') : t('cashier.card')}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
             )
           })()}
         </div>

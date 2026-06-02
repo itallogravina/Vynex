@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { PeriodComparison } from '@vynex/shared'
 import { useTranslation } from '../../context/I18nContext'
 import { useServerUrl } from '../../context/ServerUrlContext'
@@ -19,13 +19,18 @@ export default function ComparisonTab() {
     try {
       const res = await apiFetch(`${serverUrl}/reports/comparison?period=${p}`)
       if (!res.ok) throw new Error(`${res.status}`)
-      setData(await res.json())
+      const json = await res.json()
+      console.log('[ComparisonTab] data:', json)
+      setData(json)
     } catch {
       setError(t('common.error'))
     } finally {
       setLoading(false)
     }
   }, [apiFetch, serverUrl, t])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetch_('week') }, [])
 
   const switchPeriod = (p: 'week' | 'month') => {
     setPeriod(p)
@@ -63,7 +68,7 @@ export default function ComparisonTab() {
         <>
           <div className="comparison-grid">
             <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.5rem' }}>
                 {t('reports.currentPeriod')}
                 <span style={{ marginLeft: 8, fontWeight: 400, fontSize: '0.7rem' }}>
                   {data.current.from} → {data.current.to}
@@ -84,7 +89,7 @@ export default function ComparisonTab() {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.5rem' }}>
                 {t('reports.previousPeriod')}
                 <span style={{ marginLeft: 8, fontWeight: 400, fontSize: '0.7rem' }}>
                   {data.previous.from} → {data.previous.to}
@@ -103,7 +108,7 @@ export default function ComparisonTab() {
             </div>
           </div>
 
-          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: '0.5rem' }}>
+          <div style={{ fontSize: '0.8rem', color: '#9ca3af', textAlign: 'center', marginTop: '0.5rem' }}>
             {period === 'week' ? t('reports.vsLastWeek') : t('reports.vsLastMonth')}
           </div>
         </>

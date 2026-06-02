@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -45,13 +45,18 @@ export default function SalesTab() {
         `${serverUrl}/reports/sales?from=${from}&to=${to}&groupBy=${groupBy}`
       )
       if (!res.ok) throw new Error(`${res.status}`)
-      setData(await res.json())
+      const json = await res.json()
+      console.log('[SalesTab] data:', json)
+      setData(json)
     } catch {
       setError(t('common.error'))
     } finally {
       setLoading(false)
     }
   }, [apiFetch, serverUrl, from, to, groupBy, t])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetch_() }, [])
 
   const fmt = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -100,31 +105,31 @@ export default function SalesTab() {
           {data.by_day.length === 0 ? (
             <div className="reports-empty">{t('reports.noData')}</div>
           ) : (
-            <div className="chart-box">
-              <div className="chart-title">{t('reports.revenue')} + {t('reports.orders')}</div>
+            <div className="chart-box" style={{ background: '#fff', borderRadius: 8, padding: '1rem' }}>
+              <div className="chart-title" style={{ color: '#111827' }}>{t('reports.revenue')} + {t('reports.orders')}</div>
               <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={data.by_day} margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="date" tick={{ fill: '#374151', fontSize: 11 }} />
                   <YAxis
                     yAxisId="rev"
                     tickFormatter={v => `R$${v}`}
-                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                    tick={{ fill: '#374151', fontSize: 11 }}
                   />
                   <YAxis
                     yAxisId="ord"
                     orientation="right"
-                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                    tick={{ fill: '#374151', fontSize: 11 }}
                   />
                   <Tooltip
                     formatter={(v, name) =>
                       name === 'revenue' ? [fmt(Number(v)), t('reports.revenue')] : [Number(v), t('reports.orders')]
                     }
-                    contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8 }}
-                    labelStyle={{ color: 'rgba(255,255,255,0.7)' }}
-                    itemStyle={{ color: '#fff' }}
+                    contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8 }}
+                    labelStyle={{ color: '#374151' }}
+                    itemStyle={{ color: '#374151' }}
                   />
-                  <Legend formatter={v => v === 'revenue' ? t('reports.revenue') : t('reports.orders')} wrapperStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }} />
+                  <Legend formatter={v => v === 'revenue' ? t('reports.revenue') : t('reports.orders')} wrapperStyle={{ color: '#374151', fontSize: 12 }} />
                   <Bar yAxisId="rev" dataKey="revenue" fill="#3498db" radius={[3, 3, 0, 0]} />
                   <Line yAxisId="ord" type="monotone" dataKey="orders" stroke="#e67e22" strokeWidth={2} dot={false} />
                 </ComposedChart>

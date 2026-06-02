@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter @vynex/server tsc --noEmit)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

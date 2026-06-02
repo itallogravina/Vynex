@@ -63,13 +63,15 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 ---
 
-## Tab Management ⬜
+## Tab Management ✅
 
-- ⬜ DB: `orders.tab_number` column
-- ⬜ API: `PATCH /orders/:id/tab` to assign/reassign tab number
-- ⬜ Desktop: Tab number input on cashier screen order card
-- ⬜ DB: `venue_areas.min_consumption_per_person` column
-- ⬜ Desktop: Minimum consumption alert at cashier closing
+- ✅ DB: `orders.tab_number TEXT` column (migration in `init.ts`)
+- ✅ API: `PATCH /orders/:id/tab-number` — set or clear tab number
+- ✅ Desktop: Inline tab number field per bill card; save on blur or Enter
+- ✅ Desktop: Filter/search bills by tab number or table name
+- ✅ DB: `tables.min_consumption REAL` column (migration in `init.ts`)
+- ✅ API: `PATCH /tables/:id` accepts `min_consumption`
+- ✅ Desktop: Red warning banner on bill card when table total is below minimum consumption
 
 ---
 

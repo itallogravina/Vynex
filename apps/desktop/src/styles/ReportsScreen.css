@@ -11,14 +11,39 @@
   align-items: center;
   gap: 1.5rem;
   flex-wrap: wrap;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid #e5e7eb;
   padding-bottom: 0.75rem;
+  background: #f9fafb;
 }
 
 .reports-tabs {
   display: flex;
   gap: 0.25rem;
   flex-wrap: wrap;
+}
+
+.reports-screen .tab-btn {
+  padding: 0.4rem 1.1rem;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  background: transparent;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.reports-screen .tab-btn.active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+
+.reports-screen .tab-btn:hover:not(.active) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #111827;
 }
 
 .reports-body {
@@ -38,8 +63,8 @@
 .kpi-card {
   flex: 1;
   min-width: 140px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 1rem 1.25rem;
 }
@@ -49,14 +74,14 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.55);
+  color: #6b7280;
   margin-bottom: 0.35rem;
 }
 
 .kpi-value {
   font-size: 1.6rem;
   font-weight: 700;
-  color: #fff;
+  color: #111827;
   line-height: 1;
 }
 
@@ -68,7 +93,7 @@
 
 .kpi-delta.positive { color: #2ecc71; }
 .kpi-delta.negative { color: #e74c3c; }
-.kpi-delta.neutral  { color: rgba(255, 255, 255, 0.5); }
+.kpi-delta.neutral  { color: #9ca3af; }
 
 /* Date range controls */
 .date-controls {
@@ -80,16 +105,16 @@
 
 .date-controls label {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: #374151;
   font-weight: 600;
 }
 
 .date-controls input[type='date'],
 .date-controls select {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: #fff;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
-  color: #fff;
+  color: #111827;
   padding: 0.3rem 0.6rem;
   font-size: 0.85rem;
 }
@@ -97,32 +122,32 @@
 .date-controls input[type='date']:focus,
 .date-controls select:focus {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.5);
+  border-color: #9ca3af;
 }
 
 .date-controls select option {
-  background: #1a1a2e;
+  background: #fff;
 }
 
 .fetch-btn {
   padding: 0.35rem 1rem;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
-  color: #fff;
+  color: #374151;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.fetch-btn:hover { background: rgba(255, 255, 255, 0.25); }
+.fetch-btn:hover { background: #e5e7eb; }
 
 /* Period toggle (Comparison tab) */
 .period-toggle {
   display: flex;
   gap: 0.25rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: #f3f4f6;
   border-radius: 8px;
   padding: 3px;
 }
@@ -132,7 +157,7 @@
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
+  color: #6b7280;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -140,14 +165,14 @@
 }
 
 .period-toggle button.active {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: #fff;
+  color: #111827;
 }
 
 /* Chart wrapper */
 .chart-box {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 1.25rem 0.5rem 0.75rem;
   margin-bottom: 1.5rem;
@@ -158,7 +183,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
+  color: #374151;
   margin: 0 0 1rem 1rem;
 }
 
@@ -176,25 +201,25 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .report-table td {
   padding: 0.55rem 0.75rem;
-  color: rgba(255, 255, 255, 0.85);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: #111827;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .report-table tr:last-child td { border-bottom: none; }
 
-.report-table tr:hover td { background: rgba(255, 255, 255, 0.04); }
+.report-table tr:hover td { background: #f9fafb; }
 
 .report-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 .table-box {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 10px;
   overflow: hidden;
   margin-bottom: 1.5rem;
@@ -205,16 +230,16 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
+  color: #6b7280;
   padding: 0.75rem 1rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid #e5e7eb;
 }
 
 /* Empty / loading */
 .reports-empty {
   text-align: center;
   padding: 3rem 1rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: #9ca3af;
   font-size: 0.9rem;
 }
 

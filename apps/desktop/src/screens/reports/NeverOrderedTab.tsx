@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { NeverOrderedReport } from '@vynex/shared'
 import { useTranslation } from '../../context/I18nContext'
 import { useServerUrl } from '../../context/ServerUrlContext'
@@ -28,13 +28,18 @@ export default function NeverOrderedTab() {
     try {
       const res = await apiFetch(`${serverUrl}/reports/never-ordered?from=${from}&to=${to}`)
       if (!res.ok) throw new Error(`${res.status}`)
-      setData(await res.json())
+      const json = await res.json()
+      console.log('[NeverOrderedTab] data:', json)
+      setData(json)
     } catch {
       setError(t('common.error'))
     } finally {
       setLoading(false)
     }
   }, [apiFetch, serverUrl, from, to, t])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetch_() }, [])
 
   const fmt = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
