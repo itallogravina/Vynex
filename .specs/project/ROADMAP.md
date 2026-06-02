@@ -278,14 +278,14 @@ order traceability, and financial visibility for owners and managers.
 - Define maximum occupancy per area (dining room, bar, terrace)
 - Visual indicator and optional hard block when area is at capacity
 
-### Promotions & Combos
+### Promotions & Combos ✅ COMPLETE
 
-**Combo Deals**
+**Combo Deals** ✅
 
 - Define bundles of items at a fixed price
 - Combos selectable from the order screen; individual items tracked for kitchen routing
 
-**Promotions**
+**Promotions** ✅
 
 - Time-limited price reductions or percentage discounts on items or categories
 - Applied automatically based on active time window
