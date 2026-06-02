@@ -366,14 +366,20 @@ async function runMigrations(): Promise<void> {
 
   // M6 Review Step: routed_at on order_items (explicit confirm-routing before kitchen/bar receives items)
   try {
-    const oiCols = await client!.execute({ sql: `SELECT name FROM pragma_table_info('order_items')`, args: [] })
-    if (!oiCols.rows.some(r => r.name === 'routed_at')) {
+    const routedCols = await client!.execute({
+      sql: `SELECT name FROM pragma_table_info('order_items')`,
+      args: [],
+    })
+    const routedColNames = new Set(routedCols.rows.map((r: any) => r.name as string))
+    if (!routedColNames.has('routed_at')) {
       await client!.execute('ALTER TABLE order_items ADD COLUMN routed_at TEXT')
       console.log('[db] migration: added routed_at to order_items')
     }
   } catch { /* already exists */ }
   try {
-    await client!.execute('CREATE INDEX IF NOT EXISTS idx_order_items_routed_at ON order_items(order_id, routed_at)')
+    await client!.execute(
+      'CREATE INDEX IF NOT EXISTS idx_order_items_routed_at ON order_items(order_id, routed_at)'
+    )
   } catch { /* already exists */ }
 }
 
