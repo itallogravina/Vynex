@@ -332,8 +332,16 @@ export default function CashierScreen() {
                               <div className="bill-items">
                                 {split.items.map(item => (
                                   <div key={item.id} className="bill-item-row">
-                                    <span className="bill-item-name">{item.quantity}× {item.menu_item.name}</span>
-                                    <span className="bill-item-price">R$ {(item.quantity * item.menu_item.price).toFixed(2)}</span>
+                                    <span className="bill-item-name">
+                                      {item.quantity}× {item.menu_item.name}
+                                      {item.combo_group_id && <span className="bill-badge-combo">COMBO</span>}
+                                    </span>
+                                    <span className="bill-item-price">
+                                      R$ {(item.quantity * (item.final_price ?? item.menu_item.price)).toFixed(2)}
+                                      {(item.discount_amount ?? 0) > 0 && (
+                                        <span className="bill-discount-tag">-R$ {((item.discount_amount ?? 0) * item.quantity).toFixed(2)}</span>
+                                      )}
+                                    </span>
                                   </div>
                                 ))}
                               </div>
@@ -347,8 +355,16 @@ export default function CashierScreen() {
                           <div className="bill-items">
                             {tg.allItems.map(item => (
                               <div key={item.id} className="bill-item-row">
-                                <span className="bill-item-name">{item.quantity}× {item.menu_item.name}</span>
-                                <span className="bill-item-price">R$ {(item.quantity * item.menu_item.price).toFixed(2)}</span>
+                                <span className="bill-item-name">
+                                  {item.quantity}× {item.menu_item.name}
+                                  {item.combo_group_id && <span className="bill-badge-combo">COMBO</span>}
+                                </span>
+                                <span className="bill-item-price">
+                                  R$ {(item.quantity * (item.final_price ?? item.menu_item.price)).toFixed(2)}
+                                  {(item.discount_amount ?? 0) > 0 && (
+                                    <span className="bill-discount-tag">-R$ {((item.discount_amount ?? 0) * item.quantity).toFixed(2)}</span>
+                                  )}
+                                </span>
                               </div>
                             ))}
                           </div>

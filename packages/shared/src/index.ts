@@ -69,6 +69,43 @@ export type OrderItem = {
   priority: Priority
   notes?: string
   added_by?: string
+  final_price?: number | null
+  discount_amount?: number
+  promotion_id?: string | null
+  combo_group_id?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type Promotion = {
+  id: string
+  name: string
+  type: 'percentage' | 'fixed'
+  value: number
+  applicable_to: 'item' | 'category'
+  applicable_id: string
+  active_from: string | null
+  active_to: string | null
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type ComboBundleItem = {
+  id: string
+  combo_id: string
+  menu_item_id: string
+  quantity: number
+  menu_item: MenuItem
+}
+
+export type ComboBundle = {
+  id: string
+  name: string
+  description: string | null
+  bundle_price: number
+  enabled: boolean
+  items: ComboBundleItem[]
   created_at: string
   updated_at: string
 }
@@ -283,6 +320,41 @@ export type CreateMenuItemRequest = {
   name: string
   price: number
   routing_zone: RoutingZone
+}
+
+export type CreatePromotionRequest = {
+  name: string
+  type: 'percentage' | 'fixed'
+  value: number
+  applicable_to: 'item' | 'category'
+  applicable_id: string
+  active_from?: string | null
+  active_to?: string | null
+}
+
+export type UpdatePromotionRequest = Partial<CreatePromotionRequest> & { enabled?: boolean }
+
+export type CreateComboBundleRequest = {
+  name: string
+  description?: string | null
+  bundle_price: number
+  items: { menu_item_id: string; quantity: number }[]
+}
+
+export type UpdateComboBundleRequest = {
+  name?: string
+  description?: string | null
+  bundle_price?: number
+  enabled?: boolean
+}
+
+export type AddComboItemRequest = {
+  menu_item_id: string
+  quantity: number
+}
+
+export type AddComboToOrderRequest = {
+  combo_id: string
 }
 
 export type UpdateMenuItemRequest = {

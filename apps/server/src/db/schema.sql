@@ -122,10 +122,50 @@ CREATE TABLE IF NOT EXISTS order_items (
   status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'preparing', 'ready', 'served', 'billed')),
   priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('normal', 'urgent', 'vip')),
   notes TEXT,
+  final_price REAL,
+  discount_amount REAL NOT NULL DEFAULT 0,
+  promotion_id TEXT,
+  combo_group_id TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id),
   FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
+);
+
+-- Promotions: time-limited discounts on items or categories
+CREATE TABLE IF NOT EXISTS promotions (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK(type IN ('percentage', 'fixed')),
+  value REAL NOT NULL,
+  applicable_to TEXT NOT NULL CHECK(applicable_to IN ('item', 'category')),
+  applicable_id TEXT NOT NULL,
+  active_from TEXT,
+  active_to TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Combo bundles: fixed-price bundles of items
+CREATE TABLE IF NOT EXISTS combo_bundles (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  bundle_price REAL NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Items within a combo bundle
+CREATE TABLE IF NOT EXISTS combo_bundle_items (
+  id TEXT PRIMARY KEY,
+  combo_id TEXT NOT NULL,
+  menu_item_id TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  FOREIGN KEY (combo_id) REFERENCES combo_bundles(id) ON DELETE CASCADE,
+  FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
 );
 
 -- Staff users

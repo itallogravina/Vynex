@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Table, MenuItem, OrderRoutingMode, ItemStatus, Priority, AddOrderItemRequest } from '@vynex/shared'
+import { Table, MenuItem, OrderRoutingMode, ItemStatus, Priority, AddOrderItemRequest, ComboBundle } from '@vynex/shared'
 import { useOrder } from '../hooks/useOrder'
 import { useConnectionStatus } from '../hooks/useConnectionStatus'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
@@ -19,6 +19,8 @@ export function OrderScreen() {
 
   const [tables, setTables] = useState<Table[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [combos, setCombos] = useState<ComboBundle[]>([])
+  const [addingComboId, setAddingComboId] = useState<string | null>(null)
   const [selectedTable, setSelectedTable] = useState<string>('')
   const [routingMode, setRoutingMode] = useState<OrderRoutingMode>(OrderRoutingMode.MANUAL)
   const [loading, setLoading] = useState(false)
@@ -62,8 +64,19 @@ export function OrderScreen() {
       }
     }
 
+    const fetchCombos = async () => {
+      try {
+        const res = await fetch(`${serverUrl}/combos/enabled`)
+        if (!res.ok) return
+        setCombos(await res.json())
+      } catch {
+        // combos are optional — don't block ordering on failure
+      }
+    }
+
     fetchTables()
     fetchMenuItems()
+    fetchCombos()
   }, [serverUrl])
 
   const handleCreateOrder = async () => {
@@ -113,6 +126,26 @@ export function OrderScreen() {
     })
     if (ok) setOfflineDraft(null)
     else setFetchError('Fila cheia — máximo 10 pedidos offline por garçom')
+  }
+
+  const handleAddCombo = async (combo: ComboBundle) => {
+    if (!order) return
+    setAddingComboId(combo.id)
+    try {
+      const res = await fetch(`${serverUrl}/orders/${order.id}/combos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ combo_id: combo.id }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setFetchError(data.error || 'Failed to add combo')
+      }
+    } catch {
+      setFetchError('Failed to add combo')
+    } finally {
+      setAddingComboId(null)
+    }
   }
 
   const openPopover = (e: React.MouseEvent<HTMLDivElement>, item: MenuItem) => {
@@ -306,6 +339,31 @@ export function OrderScreen() {
               </div>
             ))}
           </div>
+
+          {combos.length > 0 && (
+            <div className="combo-section">
+              <h4 className="combo-section-title">Combos</h4>
+              <div className="combo-cards">
+                {combos.map(combo => (
+                  <div
+                    key={combo.id}
+                    className={`combo-order-card${addingComboId === combo.id ? ' combo-order-card--adding' : ''}`}
+                    onClick={() => order && addingComboId === null && handleAddCombo(combo)}
+                    style={{ cursor: order && addingComboId === null ? 'pointer' : 'default' }}
+                  >
+                    <div className="combo-order-header">
+                      <span className="combo-order-name">{combo.name}</span>
+                      <span className="combo-order-price">R$ {combo.bundle_price.toFixed(2)}</span>
+                    </div>
+                    <span className="combo-order-items">
+                      {combo.items.map(i => `${i.quantity}× ${i.menu_item.name}`).join(', ')}
+                    </span>
+                    {addingComboId === combo.id && <span className="combo-adding-label">Adicionando…</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="order-summary">
@@ -314,31 +372,46 @@ export function OrderScreen() {
             {items.length === 0 ? (
               <p className="empty-message">Nenhum item adicionado</p>
             ) : (
-              items.map(item => (
-                <div key={item.id} className="summary-item">
-                  <div className="summary-item-header">
-                    <span className="summary-item-name">{item.menu_item.name}</span>
-                    <span
-                      className="summary-item-status"
-                      style={{ backgroundColor: statusColor(item.live_status || item.status) }}
-                    >
-                      {item.live_status || item.status}
-                    </span>
+              items.map(item => {
+                const effectivePrice = item.final_price ?? item.menu_item.price
+                const hasDiscount = (item.discount_amount ?? 0) > 0
+                const isCombo = !!item.combo_group_id
+                return (
+                  <div key={item.id} className="summary-item">
+                    <div className="summary-item-header">
+                      <span className="summary-item-name">
+                        {item.menu_item.name}
+                        {isCombo && <span className="item-badge-combo">COMBO</span>}
+                      </span>
+                      <span
+                        className="summary-item-status"
+                        style={{ backgroundColor: statusColor(item.live_status || item.status) }}
+                      >
+                        {item.live_status || item.status}
+                      </span>
+                    </div>
+                    <div className="summary-item-details">
+                      <span>Qtd: {item.quantity}</span>
+                      <span>
+                        R$ {(effectivePrice * item.quantity).toFixed(2)}
+                        {hasDiscount && (
+                          <span className="item-discount-badge">
+                            {' '}-R$ {((item.discount_amount ?? 0) * item.quantity).toFixed(2)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {item.notes && <div className="summary-item-notes">{item.notes}</div>}
                   </div>
-                  <div className="summary-item-details">
-                    <span>Qtd: {item.quantity}</span>
-                    <span>R$ {(item.menu_item.price * item.quantity).toFixed(2)}</span>
-                  </div>
-                  {item.notes && <div className="summary-item-notes">{item.notes}</div>}
-                </div>
-              ))
+                )
+              })
             )}
           </div>
 
           {items.length > 0 && (
             <div className="order-total">
               <strong>
-                Total: R$ {items.reduce((sum, item) => sum + item.menu_item.price * item.quantity, 0).toFixed(2)}
+                Total: R$ {items.reduce((sum, item) => sum + (item.final_price ?? item.menu_item.price) * item.quantity, 0).toFixed(2)}
               </strong>
             </div>
           )}

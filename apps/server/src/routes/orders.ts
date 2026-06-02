@@ -13,6 +13,9 @@ import {
   closeOrder,
   listOpenOrders,
   setOrderTabNumber,
+  getVariationDeltaSum,
+  getActivePromotionForItem,
+  getComboBundleById,
 } from '../db/queries'
 import {
   CreateOrderRequest,
@@ -20,6 +23,7 @@ import {
   UpdateItemStatusRequest,
   CloseOrderRequest,
   SetTabNumberRequest,
+  AddComboToOrderRequest,
   ItemStatus,
   Priority,
   RoutingZone,
@@ -111,7 +115,21 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       const resolvedPriority =
         priority && validPriorities.includes(priority) ? priority : Priority.NORMAL
 
-      const item = await addOrderItem(id, menu_item_id, quantity, notes, undefined, resolvedPriority)
+      // Compute base price including variation deltas
+      const variationDelta = variations && variations.length > 0
+        ? await getVariationDeltaSum(variations)
+        : 0
+      const basePrice = menuItem.price + variationDelta
+
+      // Resolve best active promotion
+      const { finalPrice, discountAmount, promotion } = await getActivePromotionForItem(
+        menuItem.id, menuItem.category_id, basePrice
+      )
+
+      const item = await addOrderItem(
+        id, menu_item_id, quantity, notes, undefined, resolvedPriority,
+        finalPrice, discountAmount, promotion?.id ?? null, null
+      )
 
       if (variations && variations.length > 0) {
         await addOrderItemVariations(item.id, variations)
@@ -124,6 +142,67 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return reply.status(201).send(item)
+    }
+  )
+
+  app.post<{ Params: { id: string }; Body: AddComboToOrderRequest }>(
+    '/orders/:id/combos',
+    async (request, reply) => {
+      const { id } = request.params
+      const { combo_id } = request.body
+
+      const order = await getOrder(id)
+      if (!order) return reply.status(404).send({ error: 'Order not found' })
+      if (order.status === 'closed') return reply.status(400).send({ error: 'Order is already closed' })
+
+      const combo = await getComboBundleById(combo_id)
+      if (!combo) return reply.status(404).send({ error: 'Combo not found' })
+      if (!combo.enabled) return reply.status(400).send({ error: 'Combo is not available' })
+      if (combo.items.length === 0) return reply.status(422).send({ error: 'Combo has no items' })
+
+      // Check all component items still exist
+      for (const ci of combo.items) {
+        const mi = await getMenuItem(ci.menu_item_id)
+        if (!mi) return reply.status(422).send({ error: `Menu item ${ci.menu_item_id} no longer exists` })
+      }
+
+      // Compute total individual price for proportional distribution
+      const totalIndividualPrice = combo.items.reduce(
+        (sum, ci) => sum + ci.menu_item.price * ci.quantity,
+        0
+      )
+
+      const { v4: uuidV4 } = require('uuid')
+      const comboGroupId = uuidV4()
+      const table = await getTable(order.table_id)
+      const createdItems = []
+
+      for (const ci of combo.items) {
+        const individualTotal = ci.menu_item.price * ci.quantity
+        const proportionalFinalPrice = totalIndividualPrice > 0
+          ? Math.round((ci.menu_item.price * (combo.bundle_price / totalIndividualPrice)) * 100) / 100
+          : ci.menu_item.price
+        const discountPerUnit = Math.round((ci.menu_item.price - proportionalFinalPrice) * 100) / 100
+
+        const item = await addOrderItem(
+          id, ci.menu_item_id, ci.quantity,
+          undefined, undefined, Priority.NORMAL,
+          proportionalFinalPrice, discountPerUnit, null, comboGroupId
+        )
+        createdItems.push(item)
+
+        if (order.routing_mode === 'auto') {
+          broadcastItemAdded(
+            item.id, ci.menu_item.name, ci.menu_item.routing_zone,
+            table?.name || 'Unknown', ci.quantity
+          )
+          broadcastQueueSnapshot(ci.menu_item.routing_zone)
+        }
+
+        void individualTotal // suppress unused warning
+      }
+
+      return reply.status(201).send({ combo_group_id: comboGroupId, items: createdItems })
     }
   )
 

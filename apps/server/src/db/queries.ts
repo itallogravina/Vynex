@@ -29,6 +29,9 @@ import {
   VariationGroup,
   VariationOption,
   CashierClosingSummary,
+  Promotion,
+  ComboBundle,
+  ComboBundleItem,
 } from '@vynex/shared'
 
 // ============================================================================
@@ -111,7 +114,7 @@ export async function listOpenOrders(): Promise<OpenOrder[]> {
   const orders: OpenOrder[] = []
   for (const row of result.rows) {
     const items = await getOrderItems(row.id as string)
-    const total = items.reduce((sum, item) => sum + item.quantity * item.menu_item.price, 0)
+    const total = items.reduce((sum, item) => sum + item.quantity * (item.final_price ?? item.menu_item.price), 0)
     orders.push({
       id: row.id as string,
       table_id: row.table_id as string,
@@ -154,15 +157,27 @@ export async function addOrderItem(
   quantity: number,
   notes?: string,
   addedBy?: string,
-  priority: Priority = Priority.NORMAL
+  priority: Priority = Priority.NORMAL,
+  finalPrice?: number | null,
+  discountAmount?: number,
+  promotionId?: string | null,
+  comboGroupId?: string | null
 ): Promise<OrderItem> {
   const client = getClient()
   const id = uuid()
   const now = new Date().toISOString()
 
   await client.execute({
-    sql: 'INSERT INTO order_items (id, order_id, menu_item_id, quantity, status, priority, notes, added_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    args: [id, orderId, menuItemId, quantity, 'pending', priority, notes ?? null, addedBy ?? null, now, now],
+    sql: `INSERT INTO order_items
+          (id, order_id, menu_item_id, quantity, status, priority, notes, added_by,
+           final_price, discount_amount, promotion_id, combo_group_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      id, orderId, menuItemId, quantity, 'pending', priority,
+      notes ?? null, addedBy ?? null,
+      finalPrice ?? null, discountAmount ?? 0, promotionId ?? null, comboGroupId ?? null,
+      now, now,
+    ],
   })
 
   return (await getOrderItem(id))!
@@ -212,6 +227,10 @@ function mapOrderItem(row: Record<string, unknown>): OrderItem {
     quantity: row.quantity as number,
     status: row.status as ItemStatus,
     priority: (row.priority as Priority) ?? Priority.NORMAL,
+    final_price: row.final_price != null ? (row.final_price as number) : null,
+    discount_amount: (row.discount_amount as number) ?? 0,
+    promotion_id: (row.promotion_id as string) ?? null,
+    combo_group_id: (row.combo_group_id as string) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -907,7 +926,7 @@ export async function getSalesReport(
   const fmt = fmtMap[groupBy]
 
   const totals = await client.execute({
-    sql: `SELECT COALESCE(SUM(oi.quantity * mi.price), 0) as revenue, COUNT(DISTINCT o.id) as orders
+    sql: `SELECT COALESCE(SUM(oi.quantity * COALESCE(oi.final_price, mi.price)), 0) as revenue, COUNT(DISTINCT o.id) as orders
           FROM orders o
           JOIN order_items oi ON oi.order_id = o.id
           JOIN menu_items mi ON mi.id = oi.menu_item_id
@@ -917,7 +936,7 @@ export async function getSalesReport(
 
   const byGroup = await client.execute({
     sql: `SELECT strftime(?, o.closed_at) as date,
-                 COALESCE(SUM(oi.quantity * mi.price), 0) as revenue,
+                 COALESCE(SUM(oi.quantity * COALESCE(oi.final_price, mi.price)), 0) as revenue,
                  COUNT(DISTINCT o.id) as orders
           FROM orders o
           JOIN order_items oi ON oi.order_id = o.id
@@ -950,7 +969,7 @@ export async function getTopItemsReport(
   const items = await client.execute({
     sql: `SELECT oi.menu_item_id, mi.name,
                  SUM(oi.quantity) as quantity_sold,
-                 SUM(oi.quantity * mi.price) as revenue
+                 SUM(oi.quantity * COALESCE(oi.final_price, mi.price)) as revenue
           FROM order_items oi
           JOIN menu_items mi ON mi.id = oi.menu_item_id
           JOIN orders o ON o.id = oi.order_id
@@ -963,7 +982,7 @@ export async function getTopItemsReport(
 
   const categories = await client.execute({
     sql: `SELECT mi.category_id, c.name,
-                 SUM(oi.quantity * mi.price) as revenue
+                 SUM(oi.quantity * COALESCE(oi.final_price, mi.price)) as revenue
           FROM order_items oi
           JOIN menu_items mi ON mi.id = oi.menu_item_id
           JOIN categories c ON c.id = mi.category_id
@@ -999,7 +1018,7 @@ export async function getPerWaiterReport(from: string, to: string): Promise<PerW
             COALESCE(u.name, 'Unknown') as name,
             COUNT(DISTINCT o.id) as orders_opened,
             COUNT(oi.id) as items_added,
-            COALESCE(SUM(CASE WHEN o.status = 'closed' THEN oi.quantity * mi.price ELSE 0 END), 0) as revenue
+            COALESCE(SUM(CASE WHEN o.status = 'closed' THEN oi.quantity * COALESCE(oi.final_price, mi.price) ELSE 0 END), 0) as revenue
           FROM orders o
           LEFT JOIN users u ON u.id = o.opened_by
           LEFT JOIN order_items oi ON oi.order_id = o.id
@@ -1261,9 +1280,9 @@ export async function getCashierClosingSummary(): Promise<CashierClosingSummary>
     client.execute({
       sql: `SELECT
               COUNT(DISTINCT o.id) as orders_closed,
-              COALESCE(SUM(CASE WHEN o.payment_method = 'cash' THEN oi.quantity * mi.price ELSE 0 END), 0) as cash,
-              COALESCE(SUM(CASE WHEN o.payment_method = 'card' THEN oi.quantity * mi.price ELSE 0 END), 0) as card,
-              COALESCE(SUM(oi.quantity * mi.price), 0) as total
+              COALESCE(SUM(CASE WHEN o.payment_method = 'cash' THEN oi.quantity * COALESCE(oi.final_price, mi.price) ELSE 0 END), 0) as cash,
+              COALESCE(SUM(CASE WHEN o.payment_method = 'card' THEN oi.quantity * COALESCE(oi.final_price, mi.price) ELSE 0 END), 0) as card,
+              COALESCE(SUM(oi.quantity * COALESCE(oi.final_price, mi.price)), 0) as total
             FROM orders o
             JOIN order_items oi ON oi.order_id = o.id
             JOIN menu_items mi ON mi.id = oi.menu_item_id
@@ -1276,7 +1295,7 @@ export async function getCashierClosingSummary(): Promise<CashierClosingSummary>
       args: [],
     }),
     client.execute({
-      sql: `SELECT mi.name, SUM(oi.quantity) as qty, SUM(oi.quantity * mi.price) as rev
+      sql: `SELECT mi.name, SUM(oi.quantity) as qty, SUM(oi.quantity * COALESCE(oi.final_price, mi.price)) as rev
             FROM order_items oi
             JOIN menu_items mi ON mi.id = oi.menu_item_id
             JOIN orders o ON o.id = oi.order_id
@@ -1331,9 +1350,9 @@ export async function getShiftSummaryReport(from: string, to: string): Promise<S
     }),
     client.execute({
       sql: `SELECT
-              COALESCE(SUM(CASE WHEN o.payment_method = 'cash' THEN oi.quantity * mi.price ELSE 0 END), 0) as cash,
-              COALESCE(SUM(CASE WHEN o.payment_method = 'card' THEN oi.quantity * mi.price ELSE 0 END), 0) as card,
-              COALESCE(SUM(oi.quantity * mi.price), 0) as total
+              COALESCE(SUM(CASE WHEN o.payment_method = 'cash' THEN oi.quantity * COALESCE(oi.final_price, mi.price) ELSE 0 END), 0) as cash,
+              COALESCE(SUM(CASE WHEN o.payment_method = 'card' THEN oi.quantity * COALESCE(oi.final_price, mi.price) ELSE 0 END), 0) as card,
+              COALESCE(SUM(oi.quantity * COALESCE(oi.final_price, mi.price)), 0) as total
             FROM orders o
             JOIN order_items oi ON oi.order_id = o.id
             JOIN menu_items mi ON mi.id = oi.menu_item_id
@@ -1363,7 +1382,7 @@ export async function getPeakHourReport(from: string, to: string): Promise<PeakH
     sql: `SELECT
             CAST(strftime('%H', o.closed_at) AS INTEGER) as hour,
             COUNT(DISTINCT o.id) as orders,
-            COALESCE(SUM(oi.quantity * mi.price), 0) as revenue
+            COALESCE(SUM(oi.quantity * COALESCE(oi.final_price, mi.price)), 0) as revenue
           FROM orders o
           JOIN order_items oi ON oi.order_id = o.id
           JOIN menu_items mi ON mi.id = oi.menu_item_id
@@ -1439,7 +1458,7 @@ export async function getPeriodComparison(period: 'week' | 'month'): Promise<Per
   const query = (from: string, to: string) =>
     getClient().execute({
       sql: `SELECT
-              COALESCE(SUM(oi.quantity * mi.price), 0) as revenue,
+              COALESCE(SUM(oi.quantity * COALESCE(oi.final_price, mi.price)), 0) as revenue,
               COUNT(DISTINCT o.id) as orders
             FROM orders o
             JOIN order_items oi ON oi.order_id = o.id
@@ -1493,4 +1512,321 @@ export async function getNeverOrderedReport(from: string, to: string): Promise<N
       price: Number(row.price),
     })),
   }
+}
+
+// ============================================================================
+// PROMOTIONS
+// ============================================================================
+
+function getCurrentHHMM(): string {
+  const now = new Date()
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+}
+
+function mapPromotion(row: Record<string, unknown>): Promotion {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    type: row.type as 'percentage' | 'fixed',
+    value: Number(row.value),
+    applicable_to: row.applicable_to as 'item' | 'category',
+    applicable_id: row.applicable_id as string,
+    active_from: (row.active_from as string) ?? null,
+    active_to: (row.active_to as string) ?? null,
+    enabled: Boolean(row.enabled),
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  }
+}
+
+export async function listPromotions(): Promise<Promotion[]> {
+  const client = getClient()
+  const result = await client.execute('SELECT * FROM promotions ORDER BY created_at DESC')
+  return result.rows.map(mapPromotion)
+}
+
+export async function createPromotion(
+  name: string,
+  type: 'percentage' | 'fixed',
+  value: number,
+  applicableTo: 'item' | 'category',
+  applicableId: string,
+  activeFrom: string | null,
+  activeTo: string | null
+): Promise<Promotion> {
+  const client = getClient()
+  const id = uuid()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: `INSERT INTO promotions (id, name, type, value, applicable_to, applicable_id, active_from, active_to, enabled, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    args: [id, name, type, value, applicableTo, applicableId, activeFrom ?? null, activeTo ?? null, now, now],
+  })
+  const result = await client.execute({ sql: 'SELECT * FROM promotions WHERE id = ?', args: [id] })
+  return mapPromotion(result.rows[0]!)
+}
+
+export async function updatePromotion(
+  promotionId: string,
+  fields: Partial<{
+    name: string
+    type: 'percentage' | 'fixed'
+    value: number
+    applicable_to: 'item' | 'category'
+    applicable_id: string
+    active_from: string | null
+    active_to: string | null
+    enabled: boolean
+  }>
+): Promise<Promotion> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  const sets: string[] = ['updated_at = ?']
+  const args: (string | number | null)[] = [now]
+
+  if (fields.name !== undefined) { sets.push('name = ?'); args.push(fields.name) }
+  if (fields.type !== undefined) { sets.push('type = ?'); args.push(fields.type) }
+  if (fields.value !== undefined) { sets.push('value = ?'); args.push(fields.value) }
+  if (fields.applicable_to !== undefined) { sets.push('applicable_to = ?'); args.push(fields.applicable_to) }
+  if (fields.applicable_id !== undefined) { sets.push('applicable_id = ?'); args.push(fields.applicable_id) }
+  if (fields.active_from !== undefined) { sets.push('active_from = ?'); args.push(fields.active_from) }
+  if (fields.active_to !== undefined) { sets.push('active_to = ?'); args.push(fields.active_to) }
+  if (fields.enabled !== undefined) { sets.push('enabled = ?'); args.push(fields.enabled ? 1 : 0) }
+
+  args.push(promotionId)
+  await client.execute({ sql: `UPDATE promotions SET ${sets.join(', ')} WHERE id = ?`, args })
+  const result = await client.execute({ sql: 'SELECT * FROM promotions WHERE id = ?', args: [promotionId] })
+  return mapPromotion(result.rows[0]!)
+}
+
+export async function deletePromotion(promotionId: string): Promise<void> {
+  const client = getClient()
+  await client.execute({ sql: 'DELETE FROM promotions WHERE id = ?', args: [promotionId] })
+}
+
+export async function getActivePromotionForItem(
+  menuItemId: string,
+  categoryId: string,
+  basePrice: number
+): Promise<{ promotion: Promotion | null; finalPrice: number; discountAmount: number }> {
+  const client = getClient()
+  const currentTime = getCurrentHHMM()
+
+  const result = await client.execute({
+    sql: `SELECT * FROM promotions
+          WHERE enabled = 1
+            AND (
+              (applicable_to = 'item' AND applicable_id = ?)
+              OR (applicable_to = 'category' AND applicable_id = ?)
+            )
+            AND (active_from IS NULL OR active_from <= ?)
+            AND (active_to IS NULL OR active_to >= ?)`,
+    args: [menuItemId, categoryId, currentTime, currentTime],
+  })
+
+  let bestPromotion: Promotion | null = null
+  let bestFinalPrice = basePrice
+  let bestDiscount = 0
+
+  for (const row of result.rows) {
+    const promo = mapPromotion(row)
+    let finalPrice: number
+    let discountAmount: number
+
+    if (promo.type === 'percentage') {
+      discountAmount = basePrice * (promo.value / 100)
+      finalPrice = basePrice - discountAmount
+    } else {
+      discountAmount = Math.min(promo.value, basePrice)
+      finalPrice = Math.max(0, basePrice - discountAmount)
+    }
+
+    if (finalPrice < bestFinalPrice) {
+      bestFinalPrice = finalPrice
+      bestPromotion = promo
+      bestDiscount = discountAmount
+    }
+  }
+
+  return {
+    promotion: bestPromotion,
+    finalPrice: Math.round(bestFinalPrice * 100) / 100,
+    discountAmount: Math.round(bestDiscount * 100) / 100,
+  }
+}
+
+export async function getVariationDeltaSum(optionIds: string[]): Promise<number> {
+  if (optionIds.length === 0) return 0
+  const client = getClient()
+  const placeholders = optionIds.map(() => '?').join(',')
+  const result = await client.execute({
+    sql: `SELECT COALESCE(SUM(price_delta), 0) as total FROM item_variation_options WHERE id IN (${placeholders})`,
+    args: optionIds,
+  })
+  return Number(result.rows[0]?.total ?? 0)
+}
+
+export async function listActivePromotions(): Promise<Promotion[]> {
+  const client = getClient()
+  const currentTime = getCurrentHHMM()
+  const result = await client.execute({
+    sql: `SELECT * FROM promotions
+          WHERE enabled = 1
+            AND (active_from IS NULL OR active_from <= ?)
+            AND (active_to IS NULL OR active_to >= ?)`,
+    args: [currentTime, currentTime],
+  })
+  return result.rows.map(mapPromotion)
+}
+
+// ============================================================================
+// COMBO BUNDLES
+// ============================================================================
+
+async function getComboBundleItems(comboId: string): Promise<ComboBundleItem[]> {
+  const client = getClient()
+  const result = await client.execute({
+    sql: `SELECT cbi.id, cbi.combo_id, cbi.menu_item_id, cbi.quantity,
+                 mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone,
+                 mi.enabled, mi.eightysixed_at, mi.prep_time_seconds,
+                 mi.created_at as mi_created_at, mi.updated_at as mi_updated_at
+          FROM combo_bundle_items cbi
+          JOIN menu_items mi ON mi.id = cbi.menu_item_id
+          WHERE cbi.combo_id = ?`,
+    args: [comboId],
+  })
+  return result.rows.map(row => ({
+    id: row.id as string,
+    combo_id: row.combo_id as string,
+    menu_item_id: row.menu_item_id as string,
+    quantity: Number(row.quantity),
+    menu_item: mapMenuItemFromRow(row),
+  }))
+}
+
+function mapComboBundle(row: Record<string, unknown>, items: ComboBundleItem[]): ComboBundle {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description as string) ?? null,
+    bundle_price: Number(row.bundle_price),
+    enabled: Boolean(row.enabled),
+    items,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  }
+}
+
+export async function listComboBundles(): Promise<ComboBundle[]> {
+  const client = getClient()
+  const result = await client.execute('SELECT * FROM combo_bundles ORDER BY created_at DESC')
+  const combos: ComboBundle[] = []
+  for (const row of result.rows) {
+    const items = await getComboBundleItems(row.id as string)
+    combos.push(mapComboBundle(row, items))
+  }
+  return combos
+}
+
+export async function listEnabledComboBundles(): Promise<ComboBundle[]> {
+  const client = getClient()
+  const result = await client.execute('SELECT * FROM combo_bundles WHERE enabled = 1 ORDER BY name')
+  const combos: ComboBundle[] = []
+  for (const row of result.rows) {
+    const items = await getComboBundleItems(row.id as string)
+    combos.push(mapComboBundle(row, items))
+  }
+  return combos
+}
+
+export async function getComboBundleById(comboId: string): Promise<ComboBundle | null> {
+  const client = getClient()
+  const result = await client.execute({ sql: 'SELECT * FROM combo_bundles WHERE id = ?', args: [comboId] })
+  if (!result.rows[0]) return null
+  const items = await getComboBundleItems(comboId)
+  return mapComboBundle(result.rows[0], items)
+}
+
+export async function createComboBundle(
+  name: string,
+  description: string | null,
+  bundlePrice: number,
+  items: { menu_item_id: string; quantity: number }[]
+): Promise<ComboBundle> {
+  const client = getClient()
+  const id = uuid()
+  const now = new Date().toISOString()
+  await client.execute({
+    sql: `INSERT INTO combo_bundles (id, name, description, bundle_price, enabled, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 1, ?, ?)`,
+    args: [id, name, description ?? null, bundlePrice, now, now],
+  })
+  for (const item of items) {
+    await client.execute({
+      sql: 'INSERT INTO combo_bundle_items (id, combo_id, menu_item_id, quantity) VALUES (?, ?, ?, ?)',
+      args: [uuid(), id, item.menu_item_id, item.quantity],
+    })
+  }
+  return (await getComboBundleById(id))!
+}
+
+export async function updateComboBundle(
+  comboId: string,
+  fields: Partial<{ name: string; description: string | null; bundle_price: number; enabled: boolean }>
+): Promise<ComboBundle> {
+  const client = getClient()
+  const now = new Date().toISOString()
+  const sets: string[] = ['updated_at = ?']
+  const args: (string | number | null)[] = [now]
+
+  if (fields.name !== undefined) { sets.push('name = ?'); args.push(fields.name) }
+  if (fields.description !== undefined) { sets.push('description = ?'); args.push(fields.description) }
+  if (fields.bundle_price !== undefined) { sets.push('bundle_price = ?'); args.push(fields.bundle_price) }
+  if (fields.enabled !== undefined) { sets.push('enabled = ?'); args.push(fields.enabled ? 1 : 0) }
+
+  args.push(comboId)
+  await client.execute({ sql: `UPDATE combo_bundles SET ${sets.join(', ')} WHERE id = ?`, args })
+  return (await getComboBundleById(comboId))!
+}
+
+export async function deleteComboBundle(comboId: string): Promise<void> {
+  const client = getClient()
+  await client.execute({ sql: 'DELETE FROM combo_bundle_items WHERE combo_id = ?', args: [comboId] })
+  await client.execute({ sql: 'DELETE FROM combo_bundles WHERE id = ?', args: [comboId] })
+}
+
+export async function addItemToComboBundle(
+  comboId: string,
+  menuItemId: string,
+  quantity: number
+): Promise<ComboBundleItem> {
+  const client = getClient()
+  const id = uuid()
+  await client.execute({
+    sql: 'INSERT INTO combo_bundle_items (id, combo_id, menu_item_id, quantity) VALUES (?, ?, ?, ?)',
+    args: [id, comboId, menuItemId, quantity],
+  })
+  const result = await client.execute({
+    sql: `SELECT cbi.id, cbi.combo_id, cbi.menu_item_id, cbi.quantity,
+                 mi.id as mi_id, mi.category_id, mi.name as mi_name, mi.price, mi.routing_zone,
+                 mi.enabled, mi.eightysixed_at, mi.prep_time_seconds,
+                 mi.created_at as mi_created_at, mi.updated_at as mi_updated_at
+          FROM combo_bundle_items cbi
+          JOIN menu_items mi ON mi.id = cbi.menu_item_id
+          WHERE cbi.id = ?`,
+    args: [id],
+  })
+  const row = result.rows[0]!
+  return {
+    id: row.id as string,
+    combo_id: row.combo_id as string,
+    menu_item_id: row.menu_item_id as string,
+    quantity: Number(row.quantity),
+    menu_item: mapMenuItemFromRow(row),
+  }
+}
+
+export async function removeItemFromComboBundle(itemId: string): Promise<void> {
+  const client = getClient()
+  await client.execute({ sql: 'DELETE FROM combo_bundle_items WHERE id = ?', args: [itemId] })
 }

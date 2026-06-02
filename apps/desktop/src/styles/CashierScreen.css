@@ -200,3 +200,25 @@
   color: #7f8c8d;
   padding-top: 0.25rem;
 }
+
+.bill-badge-combo {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.3rem;
+  background: rgba(142, 68, 173, 0.2);
+  border: 1px solid rgba(142, 68, 173, 0.4);
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #c084fc;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.bill-discount-tag {
+  display: inline-block;
+  margin-left: 0.3rem;
+  font-size: 0.75rem;
+  color: #4ade80;
+  font-weight: 700;
+}

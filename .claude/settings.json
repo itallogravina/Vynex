@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(pnpm --filter @vynex/server tsc --noEmit)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git -C /home/ita/Documentos/Vynex add -A)",
+      "Bash(git -C /home/ita/Documentos/Vynex status)"
     ]
   }
 }

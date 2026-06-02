@@ -454,3 +454,97 @@
   font-size: 13px;
   cursor: pointer;
 }
+
+/* Combo section */
+.combo-section {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  padding-top: 0.75rem;
+}
+
+.combo-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #a78bfa;
+  margin: 0 0 0.5rem;
+}
+
+.combo-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.combo-order-card {
+  background: rgba(142, 68, 173, 0.12);
+  border: 1px solid rgba(142, 68, 173, 0.3);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  transition: background 0.15s;
+}
+
+.combo-order-card:hover {
+  background: rgba(142, 68, 173, 0.22);
+}
+
+.combo-order-card--adding {
+  opacity: 0.6;
+}
+
+.combo-order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.combo-order-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #e9d5ff;
+}
+
+.combo-order-price {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #c084fc;
+}
+
+.combo-order-items {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.combo-adding-label {
+  font-size: 0.7rem;
+  color: #a78bfa;
+  display: block;
+  margin-top: 0.2rem;
+}
+
+/* Badges */
+.item-badge-combo {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  background: rgba(142, 68, 173, 0.3);
+  border: 1px solid rgba(142, 68, 173, 0.5);
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #c084fc;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+.item-discount-badge {
+  display: inline-block;
+  margin-left: 0.3rem;
+  font-size: 0.75rem;
+  color: #4ade80;
+  font-weight: 700;
+}

@@ -305,6 +305,64 @@ async function runMigrations(): Promise<void> {
       await client!.execute('ALTER TABLE tables ADD COLUMN min_consumption REAL')
     }
   } catch { /* already exists */ }
+
+  // M6 Promotions & Combos: price snapshot columns on order_items
+  try {
+    const oiCols2 = await client!.execute({ sql: `SELECT name FROM pragma_table_info('order_items')`, args: [] })
+    const oiColNames2 = new Set(oiCols2.rows.map(r => r.name as string))
+    if (!oiColNames2.has('final_price')) {
+      await client!.execute('ALTER TABLE order_items ADD COLUMN final_price REAL')
+    }
+    if (!oiColNames2.has('discount_amount')) {
+      await client!.execute('ALTER TABLE order_items ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0')
+    }
+    if (!oiColNames2.has('promotion_id')) {
+      await client!.execute('ALTER TABLE order_items ADD COLUMN promotion_id TEXT')
+    }
+    if (!oiColNames2.has('combo_group_id')) {
+      await client!.execute('ALTER TABLE order_items ADD COLUMN combo_group_id TEXT')
+    }
+  } catch { /* already exists */ }
+
+  // M6 Promotions & Combos: new tables
+  try {
+    await client!.execute(`
+      CREATE TABLE IF NOT EXISTS promotions (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('percentage', 'fixed')),
+        value REAL NOT NULL,
+        applicable_to TEXT NOT NULL CHECK(applicable_to IN ('item', 'category')),
+        applicable_id TEXT NOT NULL,
+        active_from TEXT,
+        active_to TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    await client!.execute(`
+      CREATE TABLE IF NOT EXISTS combo_bundles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        bundle_price REAL NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    await client!.execute(`
+      CREATE TABLE IF NOT EXISTS combo_bundle_items (
+        id TEXT PRIMARY KEY,
+        combo_id TEXT NOT NULL,
+        menu_item_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY (combo_id) REFERENCES combo_bundles(id) ON DELETE CASCADE,
+        FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
+      )
+    `)
+  } catch { /* already exists */ }
 }
 
 async function seedDefaultVenue(): Promise<void> {

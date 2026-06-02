@@ -18,9 +18,11 @@ import UserManagementScreen from './screens/UserManagementScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import FloorMapScreen from './screens/FloorMapScreen'
 import ReportsScreen from './screens/ReportsScreen'
+import PromotionsManagementScreen from './screens/PromotionsManagementScreen'
+import CombosManagementScreen from './screens/CombosManagementScreen'
 import './App.css'
 
-type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'floor-map' | 'menu' | 'users' | 'reports' | 'settings'
+type ScreenType = 'order' | 'kitchen' | 'bar' | 'cashier' | 'tables' | 'floor-map' | 'menu' | 'users' | 'reports' | 'settings' | 'promotions' | 'combos'
 
 function AppShell() {
   const { user, logout } = useAuth()
@@ -37,8 +39,10 @@ function AppShell() {
     { id: 'floor-map', label: t('nav.floorMap'), roles: ['owner', 'manager', 'waiter'] },
     { id: 'menu',      label: t('nav.menu'),     roles: ['owner', 'manager'] },
     { id: 'users',     label: t('nav.users'),    roles: ['owner', 'manager'] },
-    { id: 'reports',   label: t('nav.reports'),  roles: ['owner', 'manager'] },
-    { id: 'settings',  label: t('nav.settings'), roles: ['owner', 'manager'] },
+    { id: 'reports',     label: t('nav.reports'),    roles: ['owner', 'manager'] },
+    { id: 'promotions',  label: t('nav.promotions'), roles: ['owner', 'manager'] },
+    { id: 'combos',      label: t('nav.combos'),     roles: ['owner', 'manager'] },
+    { id: 'settings',    label: t('nav.settings'),   roles: ['owner', 'manager'] },
   ]
 
   const visibleNav = ALL_NAV.filter(n => n.roles.includes(role))
@@ -58,8 +62,10 @@ function AppShell() {
       case 'floor-map': return <FloorMapScreen />
       case 'menu':      return <MenuManagementScreen />
       case 'users':     return <UserManagementScreen />
-      case 'reports':   return <ReportsScreen />
-      case 'settings':  return <SettingsScreen />
+      case 'reports':     return <ReportsScreen />
+      case 'promotions':  return <PromotionsManagementScreen />
+      case 'combos':      return <CombosManagementScreen />
+      case 'settings':    return <SettingsScreen />
     }
   }
 
