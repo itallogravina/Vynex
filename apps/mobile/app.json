@@ -3,7 +3,16 @@
     "name": "Vynex",
     "slug": "vynex",
     "version": "1.0.0",
-    "platforms": ["ios", "android", "web"]
-
+    "platforms": ["ios", "android", "web"],
+    "android": {
+      "usesCleartextTraffic": true
+    },
+    "ios": {
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    }
   }
 }

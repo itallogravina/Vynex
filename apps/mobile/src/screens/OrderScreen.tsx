@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, StyleSheet } from 'react-native'
-import * as Network from 'expo-network'
 import {
   Table,
   MenuItem,
@@ -12,11 +11,9 @@ import {
   AddOrderItemRequest,
 } from '@vynex/shared'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
+import { useAuthedFetch } from '../context/AuthContext'
 import QuickOrderPopover from '../components/QuickOrderPopover'
 import OrderReviewModal from '../components/OrderReviewModal'
-
-const API_URL = 'http://localhost:3000'
-const WS_URL = 'ws://localhost:3000/ws'
 
 type OrderItemWithMenu = OrderItem & {
   menu_item: MenuItem
@@ -25,17 +22,15 @@ type OrderItemWithMenu = OrderItem & {
 
 type DraftItem = AddOrderItemRequest & { name: string; price: number }
 
-async function isServerReachable(): Promise<boolean> {
-  try {
-    const net = await Network.getNetworkStateAsync()
-    if (!net.isConnected) return false
-    const r = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(3000) })
-    return r.ok
-  } catch { return false }
+type Props = {
+  serverUrl: string
+  onOpenSettings: () => void
+  onLogout: () => void
 }
 
-export default function OrderScreen() {
-  const { queueOrder, queueCount, flush } = useOfflineQueue(API_URL, undefined)
+export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Props) {
+  const authedFetch = useAuthedFetch()
+  const { queueOrder, queueCount, flush } = useOfflineQueue(serverUrl, undefined)
 
   const [tables, setTables] = useState<Table[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
@@ -43,6 +38,7 @@ export default function OrderScreen() {
   const [routingMode, setRoutingMode] = useState<OrderRoutingMode>(OrderRoutingMode.MANUAL)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [wsConnected, setWsConnected] = useState(false)
 
   const [offlineDraft, setOfflineDraft] = useState<{
     table_id: string; routing_mode: OrderRoutingMode; items: DraftItem[]
@@ -56,11 +52,13 @@ export default function OrderScreen() {
 
   const queueItemsRef = useRef<Map<string, any>>(new Map())
   const wsRef = useRef<WebSocket | null>(null)
+  const flushRef = useRef(flush)
+  useEffect(() => { flushRef.current = flush }, [flush])
 
   useEffect(() => {
     const fetchTables = async () => {
       try {
-        const res = await fetch(`${API_URL}/tables`)
+        const res = await authedFetch(`${serverUrl}/tables`)
         if (!res.ok) throw new Error('Failed to load tables')
         const data = await res.json()
         setTables(data)
@@ -71,7 +69,7 @@ export default function OrderScreen() {
 
     const fetchMenuItems = async () => {
       try {
-        const res = await fetch(`${API_URL}/menu-items`)
+        const res = await authedFetch(`${serverUrl}/menu-items`)
         if (!res.ok) throw new Error('Failed to load menu items')
         const data = await res.json()
         setMenuItems(data)
@@ -85,44 +83,63 @@ export default function OrderScreen() {
   }, [])
 
   useEffect(() => {
-    if (!order) return
+    let closed = false
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
-    const ws = new WebSocket(WS_URL)
-    wsRef.current = ws
+    const wsUrl = serverUrl.replace(/^http/, 'ws') + '/ws?zones=kitchen,bar,cashier'
 
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ action: 'subscribe', routing_zone: 'kitchen' }))
-      ws.send(JSON.stringify({ action: 'subscribe', routing_zone: 'bar' }))
-      ws.send(JSON.stringify({ action: 'subscribe', routing_zone: 'cashier' }))
-    }
+    function connect() {
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
 
-    ws.onmessage = event => {
-      try {
-        const msg = JSON.parse(event.data)
-        if (msg.type === 'queue:snapshot') {
-          msg.items.forEach((item: any) => {
-            queueItemsRef.current.set(item.id, item)
-          })
-          updateItemStatuses()
-        } else if (msg.type === 'item:status_changed') {
-          const existing = queueItemsRef.current.get(msg.item_id)
-          if (existing) {
-            existing.status = msg.new_status
+      ws.onopen = () => {
+        setWsConnected(true)
+        setError(null)
+        flushRef.current()
+      }
+
+      ws.onmessage = event => {
+        try {
+          const msg = JSON.parse(event.data)
+          if (msg.type === 'queue:snapshot') {
+            msg.items.forEach((item: { id: string; status: string }) => {
+              queueItemsRef.current.set(item.id, item)
+            })
             updateItemStatuses()
+          } else if (msg.type === 'item:status_changed') {
+            const existing = queueItemsRef.current.get(msg.item_id)
+            if (existing) {
+              existing.status = msg.new_status
+              updateItemStatuses()
+            }
           }
+        } catch (err) {
+          console.error('WebSocket message error:', err)
         }
-      } catch (err) {
-        console.error('WebSocket message error:', err)
+      }
+
+      ws.onerror = () => {
+        setError('Conexão em tempo real perdida — reconectando...')
+      }
+
+      ws.onclose = () => {
+        setWsConnected(false)
+        wsRef.current = null
+        if (!closed) {
+          reconnectTimer = setTimeout(connect, 3000)
+        }
       }
     }
 
-    ws.onerror = () => setError('Real-time connection lost — status updates paused')
+    connect()
 
     return () => {
-      ws.close()
+      closed = true
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      wsRef.current?.close()
       wsRef.current = null
     }
-  }, [order])
+  }, [serverUrl])
 
   const updateItemStatuses = () => {
     setOrderItems(prev =>
@@ -136,27 +153,17 @@ export default function OrderScreen() {
     )
   }
 
-  useEffect(() => {
-    if (queueCount === 0) return
-    const id = setInterval(async () => {
-      if (await isServerReachable()) { flush() }
-    }, 10000)
-    return () => clearInterval(id)
-  }, [queueCount, flush])
-
   const handleCreateOrder = async () => {
     if (!selectedTable) return
     setLoading(true)
     setError(null)
     try {
-      const reachable = await isServerReachable()
-      if (!reachable) {
+      if (wsRef.current?.readyState !== WebSocket.OPEN) {
         setOfflineDraft({ table_id: selectedTable, routing_mode: routingMode, items: [] })
         return
       }
-      const res = await fetch(`${API_URL}/orders`, {
+      const res = await authedFetch(`${serverUrl}/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_id: selectedTable, routing_mode: routingMode }),
       })
 
@@ -199,9 +206,8 @@ export default function OrderScreen() {
     if (!order) return
 
     try {
-      const res = await fetch(`${API_URL}/orders/${order.id}/items`, {
+      const res = await authedFetch(`${serverUrl}/orders/${order.id}/items`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           menu_item_id: productId,
           quantity: qty,
@@ -236,8 +242,14 @@ export default function OrderScreen() {
         return r
       }),
     })
-    if (ok) setOfflineDraft(null)
-    else setError('Fila cheia — máximo 10 pedidos offline')
+    if (ok) {
+      setOfflineDraft(null)
+      // flush immediately — covers the case where WS is already connected
+      // (onopen only fires on new connections, not when WS is already open)
+      flushRef.current()
+    } else {
+      setError('Fila cheia — máximo 10 pedidos offline')
+    }
   }
 
   const handleBackToTables = () => {
@@ -248,16 +260,15 @@ export default function OrderScreen() {
 
   const handleConfirmRouting = async () => {
     if (!order) return
-    const res = await fetch(`${API_URL}/orders/${order.id}/confirm-routing`, {
+    const res = await authedFetch(`${serverUrl}/orders/${order.id}/confirm-routing`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.error || 'Failed to confirm routing')
     }
     // Refresh items so routed_at is populated
-    const orderRes = await fetch(`${API_URL}/orders/${order.id}`)
+    const orderRes = await authedFetch(`${serverUrl}/orders/${order.id}`)
     if (orderRes.ok) {
       const data = await orderRes.json()
       setOrderItems(
@@ -272,9 +283,8 @@ export default function OrderScreen() {
 
   const handleCancelOrder = async () => {
     if (!order) return
-    const res = await fetch(`${API_URL}/orders/${order.id}/cancel`, {
+    const res = await authedFetch(`${serverUrl}/orders/${order.id}/cancel`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
@@ -392,6 +402,14 @@ export default function OrderScreen() {
             </View>
           )}
 
+          {!wsConnected && queueCount >= 10 && (
+            <View style={styles.blockedMsg}>
+              <Text style={styles.blockedMsgText}>
+                Sem conexão com o servidor. {queueCount} pedidos aguardando sincronização. Reconecte antes de continuar.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Table:</Text>
             <View style={styles.selectContainer}>
@@ -460,11 +478,11 @@ export default function OrderScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.createButton, (!selectedTable || loading) && styles.buttonDisabled]}
+            style={[styles.createButton, (!selectedTable || loading || (!wsConnected && queueCount >= 10)) && styles.buttonDisabled]}
             onPress={handleCreateOrder}
-            disabled={!selectedTable || loading}
+            disabled={!selectedTable || loading || (!wsConnected && queueCount >= 10)}
           >
-            <Text style={styles.createButtonText}>{loading ? 'Creating...' : 'Create Order'}</Text>
+            <Text style={styles.createButtonText}>{loading ? 'Criando...' : 'Criar Pedido'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -483,8 +501,19 @@ export default function OrderScreen() {
           <Text style={styles.orderInfo}>Mode: {order.routing_mode.toUpperCase()}</Text>
         </View>
         <View style={styles.headerActions}>
+          {queueCount > 0 && (
+            <View style={styles.queueBadge}>
+              <Text style={styles.queueBadgeText}>{queueCount}</Text>
+            </View>
+          )}
           <TouchableOpacity style={styles.backButton} onPress={handleBackToTables}>
             <Text style={styles.backButtonText}>Mesas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+            <Text style={styles.logoutButtonText}>Sair</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingsButton} onPress={onOpenSettings}>
+            <Text style={styles.settingsButtonText}>⚙</Text>
           </TouchableOpacity>
           {(() => {
             const unroutedCount = orderItems.filter(i => !i.routed_at).length
@@ -943,5 +972,52 @@ const styles = StyleSheet.create({
     color: '#e05050',
     fontWeight: '600',
     fontSize: 13,
+  },
+  settingsButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#374151',
+    borderRadius: 4,
+  },
+  settingsButtonText: {
+    color: '#d1d5db',
+    fontSize: 14,
+  },
+  logoutButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#7c3aed',
+    borderRadius: 4,
+  },
+  logoutButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  queueBadge: {
+    backgroundColor: '#f59e0b',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  queueBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  blockedMsg: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  blockedMsgText: {
+    color: '#92400e',
+    fontSize: 13,
+    textAlign: 'center',
   },
 })

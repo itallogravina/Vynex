@@ -1,4 +1,10 @@
 {
   "extends": ["../../tsconfig.base.json", "expo/tsconfig.base"],
-  "include": ["src", "index.ts"]
+  "include": ["src", "index.ts"],
+  "compilerOptions": {
+    "paths": {
+      "@vynex/shared": ["../../packages/shared/src/index.ts"],
+      "expo-file-system/legacy": ["./node_modules/expo-file-system/build/legacy/FileSystem"]
+    }
+  }
 }

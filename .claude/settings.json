@@ -4,7 +4,18 @@
       "Bash(pnpm --filter @vynex/server tsc --noEmit)",
       "Bash(git commit -m ' *)",
       "Bash(git -C /home/ita/Documentos/Vynex add -A)",
-      "Bash(git -C /home/ita/Documentos/Vynex status)"
+      "Bash(git -C /home/ita/Documentos/Vynex status)",
+      "Bash(git -C /home/ita/Documentos/Vynex commit -m ' *)",
+      "Bash(git -C /home/ita/Documentos/Vynex add .specs/project/ROADMAP.md)",
+      "Bash(git -C /home/ita/Documentos/Vynex commit -m 'docs\\(M6\\): mark Promotions & Combos complete in ROADMAP *)",
+      "Bash(pnpm --filter @vynex/mobile tsc --noEmit)",
+      "Bash(node -e \"const p = require\\('./apps/mobile/node_modules/@react-native-async-storage/async-storage/package.json'\\); console.log\\('expo plugin:', p['expo-plugin'] ?? p.main\\)\")",
+      "Bash(node -e \"const p = require\\('./apps/mobile/node_modules/@react-native-async-storage/async-storage/package.json'\\); console.log\\(JSON.stringify\\(p['expo-config-plugin'] ?? p['plugins'] ?? 'none'\\)\\)\")",
+      "Bash(node -e \"const fs = require\\('/home/ita/Documentos/Vynex/node_modules/.pnpm/expo-file-system@56.0.7_expo@54.0.34_@babel+core@7.29.7_react-native@0.81.5_@babel+core_2918c0afc13539db92caad1f045811aa/node_modules/expo-file-system/build/index.js'\\); console.log\\(Object.keys\\(fs\\).slice\\(0,20\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\(json.dumps\\(p.get\\('exports', p.get\\('main', 'no exports'\\)\\), indent=2\\)\\)\")",
+      "Bash(npx expo *)",
+      "Bash(xargs python3 -c \"import sys,json; p=json.load\\(open\\(sys.argv[1]\\)\\); e=p.get\\('exports',{}\\); [print\\(k,'=>',v if isinstance\\(v,str\\) else list\\(v.keys\\(\\)\\)\\) for k,v in \\(e.items\\(\\) if isinstance\\(e,dict\\) else []\\)]\")",
+      "Bash(xargs cat)"
     ]
   }
 }

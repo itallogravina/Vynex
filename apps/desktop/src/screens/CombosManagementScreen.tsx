@@ -88,6 +88,7 @@ export default function CombosManagementScreen() {
 
   const bundlePrice = parseFloat(form.bundle_price) || 0
   const savings = individualTotal - bundlePrice
+  const discount = (1 - bundlePrice / individualTotal)*100 
 
   const handleSave = async () => {
     if (!form.name.trim()) { setOpError('Name is required'); return }
@@ -247,8 +248,11 @@ export default function CombosManagementScreen() {
             {formItems.length > 0 && individualTotal > 0 && (
               <div className="combo-price-summary">
                 <span>Individual: R$ {individualTotal.toFixed(2)}</span>
-                {bundlePrice > 0 && savings > 0.005 && (
+                {bundlePrice > 0 && savings > 0.005 && (<>
+                
                   <span className="combo-savings-label">Economia: R$ {savings.toFixed(2)}</span>
+                  <span className="combo-savings-label">{discount.toFixed(2)}%</span>
+                </>
                 )}
               </div>
             )}
