@@ -26,14 +26,16 @@ export async function registerWebSocketHandler(app: FastifyInstance): Promise<vo
         return
       }
 
+      console.log(`[ws] client connected zones=${zones.join(',')}`)
       addClient(socket, zones)
 
-      socket.on('close', () => {
+      socket.on('close', (code: number, reason: Buffer) => {
+        console.log(`[ws] client disconnected code=${code} reason="${reason.toString()}"`)
         removeClient(socket)
       })
 
       socket.on('error', (err: any) => {
-        console.error(`WebSocket error: ${err.message}`)
+        console.error(`[ws] client error: ${err.message}`)
         removeClient(socket)
       })
 

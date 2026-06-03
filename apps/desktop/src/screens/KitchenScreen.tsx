@@ -32,7 +32,7 @@ function fmtDateTime(iso: string) {
 export default function KitchenScreen() {
   const now = useTick()
   const { serverUrl } = useServerUrl()
-  const { items, isConnected, error } = useQueue(RoutingZone.KITCHEN)
+  const { items, isConnected, error, wsLogs } = useQueue(RoutingZone.KITCHEN)
   const [completedOpen, setCompletedOpen] = useState(false)
 
   const activeItems = items.filter(
@@ -71,9 +71,15 @@ export default function KitchenScreen() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      {!isConnected && items.length > 0 && (
+        <div className="error-banner" style={{ background: '#92400e' }}>Offline — exibindo último estado conhecido</div>
+      )}
+      <div style={{ position: 'fixed', bottom: 8, right: 8, background: '#111', color: '#0f0', fontFamily: 'monospace', fontSize: 11, padding: '6px 10px', borderRadius: 6, opacity: 0.85, zIndex: 9999, pointerEvents: 'none' }}>
+        {wsLogs.map((l, i) => <div key={i}>{l}</div>)}
+      </div>
 
       <div className="queue-container">
-        {activeItems.length === 0 ? (
+        {activeItems.length === 0 && isConnected ? (
           <div className="empty-queue">No items in queue</div>
         ) : (
           <div className="items-grid">

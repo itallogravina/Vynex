@@ -15,7 +15,9 @@
       "Bash(python3 -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\(json.dumps\\(p.get\\('exports', p.get\\('main', 'no exports'\\)\\), indent=2\\)\\)\")",
       "Bash(npx expo *)",
       "Bash(xargs python3 -c \"import sys,json; p=json.load\\(open\\(sys.argv[1]\\)\\); e=p.get\\('exports',{}\\); [print\\(k,'=>',v if isinstance\\(v,str\\) else list\\(v.keys\\(\\)\\)\\) for k,v in \\(e.items\\(\\) if isinstance\\(e,dict\\) else []\\)]\")",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(node -e \"const p = require\\('./node_modules/@fastify/websocket/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e \"const p = require\\('./node_modules/fastify/package.json'\\); console.log\\(p.version\\)\")"
     ]
   }
 }
