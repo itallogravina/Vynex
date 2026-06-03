@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { User } from '@vynex/shared'
 import { useAuth } from '../context/AuthContext'
+import { useTranslation } from '../context/I18nContext'
 
 type Method = 'pin' | 'password' | 'list'
 
@@ -23,6 +24,7 @@ type Props = {
 
 export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
   const { login } = useAuth()
+  const { t } = useTranslation()
   const [method, setMethod] = useState<Method>('pin')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -55,7 +57,7 @@ export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
       try {
         await login(serverUrl, req)
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Falha no login')
+        setError(e instanceof Error ? e.message : t('auth.loginFailed'))
       } finally {
         setLoading(false)
       }
@@ -68,7 +70,7 @@ export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
   }
   const backspace = () => setPin(p => p.slice(0, -1))
   const submitPin = () => {
-    if (pin.length < 4) { setError('PIN deve ter pelo menos 4 dígitos'); return }
+    if (pin.length < 4) { setError(t('auth.pinMinLength')); return }
     doLogin({ login_method: 'pin', pin })
   }
 
@@ -100,7 +102,7 @@ export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
                 onPress={() => switchMethod(m)}
               >
                 <Text style={[styles.tabText, method === m && styles.tabTextActive]}>
-                  {m === 'pin' ? 'PIN' : m === 'password' ? 'Senha' : 'Lista'}
+                  {m === 'pin' ? t('auth.pin') : m === 'password' ? t('auth.password') : t('auth.selectUser')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -139,7 +141,7 @@ export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
                 {loading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.submitBtnText}>Entrar</Text>
+                  <Text style={styles.submitBtnText}>{t('auth.login')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -147,7 +149,7 @@ export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
 
           {method === 'password' && (
             <View style={styles.formContainer}>
-              <Text style={styles.label}>Usuário</Text>
+              <Text style={styles.label}>{t('auth.username')}</Text>
               <TextInput
                 style={styles.input}
                 value={username}
@@ -158,7 +160,7 @@ export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
                 placeholderTextColor="#aaa"
                 placeholder="nome de usuário"
               />
-              <Text style={styles.label}>Senha</Text>
+              <Text style={styles.label}>{t('auth.password')}</Text>
               <TextInput
                 style={styles.input}
                 value={password}
@@ -176,7 +178,7 @@ export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
                 {loading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.submitBtnText}>Entrar</Text>
+                  <Text style={styles.submitBtnText}>{t('auth.login')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -186,7 +188,7 @@ export default function LoginScreen({ serverUrl, onOpenSettings }: Props) {
             <View style={styles.listContainer}>
               {listLoading && <ActivityIndicator color="#3b82f6" style={styles.listSpinner} />}
               {!listLoading && listUsers.length === 0 && (
-                <Text style={styles.listEmpty}>Nenhum usuário configurado para login por lista.</Text>
+                <Text style={styles.listEmpty}>{t('auth.noListUsers')}</Text>
               )}
               <FlatList
                 data={listUsers}

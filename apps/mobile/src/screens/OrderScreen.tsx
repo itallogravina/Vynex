@@ -12,6 +12,7 @@ import {
 } from '@vynex/shared'
 import { useOfflineQueue } from '../hooks/useOfflineQueue'
 import { useAuthedFetch } from '../context/AuthContext'
+import { useTranslation } from '../context/I18nContext'
 import QuickOrderPopover from '../components/QuickOrderPopover'
 import OrderReviewModal from '../components/OrderReviewModal'
 
@@ -30,6 +31,7 @@ type Props = {
 
 export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Props) {
   const authedFetch = useAuthedFetch()
+  const { t } = useTranslation()
   const { queueOrder, queueCount, flush } = useOfflineQueue(serverUrl, undefined)
 
   const [tables, setTables] = useState<Table[]>([])
@@ -119,7 +121,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
       }
 
       ws.onerror = () => {
-        setError('Conexão em tempo real perdida — reconectando...')
+        setError(t('queue.wsDisconnected'))
       }
 
       ws.onclose = () => {
@@ -248,7 +250,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
       // (onopen only fires on new connections, not when WS is already open)
       flushRef.current()
     } else {
-      setError('Fila cheia — máximo 10 pedidos offline')
+      setError(t('orders.queueFull'))
     }
   }
 
@@ -321,7 +323,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
       <ScrollView style={styles.container}>
         <View style={styles.offlineBanner}>
           <Text style={styles.offlineBannerText}>
-            Voce esta offline — rascunho local (Mesa: {draftTable?.name ?? offlineDraft.table_id})
+            {t('orders.offlineDraft')} ({t('orders.table')}: {draftTable?.name ?? offlineDraft.table_id})
             {queueCount > 0 ? `  •  ${queueCount} na fila` : ''}
           </Text>
         </View>
@@ -333,9 +335,9 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
         />
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rascunho</Text>
+          <Text style={styles.sectionTitle}>{t('orders.draftSection')}</Text>
           {offlineDraft.items.length === 0 ? (
-            <Text style={styles.emptyMessage}>Nenhum item adicionado</Text>
+            <Text style={styles.emptyMessage}>{t('orders.noItemsYet')}</Text>
           ) : (
             <FlatList
               data={offlineDraft.items}
@@ -358,17 +360,17 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
               onPress={handleQueueDraft}
               disabled={offlineDraft.items.length === 0}
             >
-              <Text style={styles.createButtonText}>Enviar quando online</Text>
+              <Text style={styles.createButtonText}>{t('orders.sendWhenOnline')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.discardButton} onPress={() => setOfflineDraft(null)}>
-              <Text style={styles.discardButtonText}>Descartar</Text>
+              <Text style={styles.discardButtonText}>{t('orders.discard')}</Text>
             </TouchableOpacity>
           </View>
           {error && <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View>}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Adicionar itens</Text>
+          <Text style={styles.sectionTitle}>{t('orders.addItems')}</Text>
           <FlatList
             data={menuItems.filter(i => !i.eightysixed_at)}
             keyExtractor={item => item.id}
@@ -394,7 +396,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
     return (
       <ScrollView style={styles.container}>
         <View style={styles.setupContainer}>
-          <Text style={styles.setupTitle}>Create Order</Text>
+          <Text style={styles.setupTitle}>{t('orders.createOrder')}</Text>
 
           {error && (
             <View style={styles.errorBanner}>
@@ -405,13 +407,13 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
           {!wsConnected && queueCount >= 10 && (
             <View style={styles.blockedMsg}>
               <Text style={styles.blockedMsgText}>
-                Sem conexão com o servidor. {queueCount} pedidos aguardando sincronização. Reconecte antes de continuar.
+                {t('queue.noServer')} {queueCount} {t('queue.pendingSync')}
               </Text>
             </View>
           )}
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Table:</Text>
+            <Text style={styles.label}>{t('orders.table')}:</Text>
             <View style={styles.selectContainer}>
               <FlatList
                 data={tables}
@@ -440,7 +442,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Routing Mode:</Text>
+            <Text style={styles.label}>{t('orders.routingMode')}:</Text>
             <View style={styles.modeContainer}>
               <TouchableOpacity
                 style={[
@@ -482,7 +484,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
             onPress={handleCreateOrder}
             disabled={!selectedTable || loading || (!wsConnected && queueCount >= 10)}
           >
-            <Text style={styles.createButtonText}>{loading ? 'Criando...' : 'Criar Pedido'}</Text>
+            <Text style={styles.createButtonText}>{loading ? t('orders.creating') : t('orders.createOrder')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -507,10 +509,10 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
             </View>
           )}
           <TouchableOpacity style={styles.backButton} onPress={handleBackToTables}>
-            <Text style={styles.backButtonText}>Mesas</Text>
+            <Text style={styles.backButtonText}>{t('nav.tables')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-            <Text style={styles.logoutButtonText}>Sair</Text>
+            <Text style={styles.logoutButtonText}>{t('auth.logout')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingsButton} onPress={onOpenSettings}>
             <Text style={styles.settingsButtonText}>⚙</Text>
@@ -524,7 +526,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
                 disabled={unroutedCount === 0}
               >
                 <Text style={styles.reviewButtonText}>
-                  Revisar{unroutedCount > 0 ? ` (${unroutedCount})` : ''}
+                  {t('orders.review')}{unroutedCount > 0 ? ` (${unroutedCount})` : ''}
                 </Text>
               </TouchableOpacity>
             )
@@ -548,11 +550,11 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Add Items</Text>
+          <Text style={styles.sectionTitle}>{t('orders.addItems')}</Text>
 
           <TextInput
             style={styles.searchInput}
-            placeholder="Search items..."
+            placeholder={t('orders.searchItems')}
             value={searchTerm}
             onChangeText={setSearchTerm}
           />
@@ -589,10 +591,10 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Summary</Text>
+          <Text style={styles.sectionTitle}>{t('orders.orderSummary')}</Text>
 
           {orderItems.length === 0 ? (
-            <Text style={styles.emptyMessage}>No items added yet</Text>
+            <Text style={styles.emptyMessage}>{t('orders.noItemsYet')}</Text>
           ) : (
             <FlatList
               data={orderItems}
@@ -613,7 +615,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
                     </View>
                   </View>
                   <View style={styles.summaryItemDetails}>
-                    <Text>Qty: {orderItem.quantity}</Text>
+                    <Text>{t('orders.qty')}: {orderItem.quantity}</Text>
                     <Text>${(orderItem.menu_item.price * orderItem.quantity).toFixed(2)}</Text>
                   </View>
                   {orderItem.notes && (
@@ -628,7 +630,7 @@ export default function OrderScreen({ serverUrl, onOpenSettings, onLogout }: Pro
           {orderItems.length > 0 && (
             <View style={styles.orderTotal}>
               <Text style={styles.orderTotalText}>
-                Total: $
+                {t('common.total')}: R$
                 {orderItems
                   .reduce((sum, item) => sum + item.menu_item.price * item.quantity, 0)
                   .toFixed(2)}

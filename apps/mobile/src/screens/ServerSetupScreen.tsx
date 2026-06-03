@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
+import { useTranslation } from '../context/I18nContext'
 
 type Props = {
   initialUrl?: string
@@ -16,6 +17,7 @@ type Props = {
 }
 
 export default function ServerSetupScreen({ initialUrl, onSave }: Props) {
+  const { t } = useTranslation()
   const [url, setUrl] = useState(initialUrl ?? 'http://')
   const [testing, setTesting] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -40,14 +42,14 @@ export default function ServerSetupScreen({ initialUrl, onSave }: Props) {
         setTestResult('ok')
       } else {
         setTestResult('error')
-        setErrorMsg(`Servidor respondeu com ${res.status}`)
+        setErrorMsg(`${t('setup.serverRespondedWith')} ${res.status}`)
       }
     } catch (err) {
       setTestResult('error')
       if (err instanceof Error && err.name === 'AbortError') {
-        setErrorMsg('Conexão esgotou o tempo — verifique se o servidor está rodando e o IP está correto')
+        setErrorMsg(t('setup.connectionTimeout'))
       } else {
-        setErrorMsg(err instanceof Error ? err.message : 'Não foi possível conectar')
+        setErrorMsg(err instanceof Error ? err.message : t('setup.connectionFailed'))
       }
     } finally {
       setTesting(false)
@@ -71,12 +73,10 @@ export default function ServerSetupScreen({ initialUrl, onSave }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.card}>
-        <Text style={styles.title}>Configurar Servidor</Text>
-        <Text style={styles.subtitle}>
-          Digite o endereço IP do computador que está executando o servidor Vynex.
-        </Text>
+        <Text style={styles.title}>{t('setup.title')}</Text>
+        <Text style={styles.subtitle}>{t('setup.subtitle')}</Text>
 
-        <Text style={styles.label}>URL do servidor</Text>
+        <Text style={styles.label}>{t('setup.urlLabel')}</Text>
         <TextInput
           style={styles.input}
           value={url}
@@ -101,18 +101,18 @@ export default function ServerSetupScreen({ initialUrl, onSave }: Props) {
           {testing ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.testBtnText}>Testar conexão</Text>
+            <Text style={styles.testBtnText}>{t('setup.testBtn')}</Text>
           )}
         </TouchableOpacity>
 
         {testResult === 'ok' && (
           <View style={styles.successBox}>
-            <Text style={styles.successText}>✓ Servidor encontrado</Text>
+            <Text style={styles.successText}>✓ {t('setup.serverFound')}</Text>
           </View>
         )}
         {testResult === 'error' && (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>✕ {errorMsg ?? 'Falha ao conectar'}</Text>
+            <Text style={styles.errorText}>✕ {errorMsg ?? t('setup.connectionFailed')}</Text>
           </View>
         )}
 
@@ -124,7 +124,7 @@ export default function ServerSetupScreen({ initialUrl, onSave }: Props) {
           {saving ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.saveBtnText}>Salvar e continuar</Text>
+            <Text style={styles.saveBtnText}>{t('setup.saveBtn')}</Text>
           )}
         </TouchableOpacity>
       </View>

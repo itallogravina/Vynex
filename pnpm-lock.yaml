@@ -162,6 +162,8 @@ importers:
         specifier: '*'
         version: 5.9.3
 
+  packages/i18n: {}
+
   packages/shared:
     devDependencies:
       typescript:

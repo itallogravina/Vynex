@@ -1,10 +1,11 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import * as FileSystem from 'expo-file-system/legacy'
 import { translations, resolveKey } from '@vynex/i18n'
 import type { SupportedLocale } from '@vynex/i18n'
 
 export type { SupportedLocale }
 
-const STORAGE_KEY = 'vynex_locale'
+const LOCALE_FILE = FileSystem.documentDirectory + 'vynex_locale.json'
 
 type I18nCtx = {
   locale: SupportedLocale
@@ -19,14 +20,23 @@ const I18nContext = createContext<I18nCtx>({
 })
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const stored = localStorage.getItem(STORAGE_KEY) as SupportedLocale | null
-  const [locale, setLocaleState] = useState<SupportedLocale>(
-    stored && stored in translations ? stored : 'pt-BR'
-  )
+  const [locale, setLocaleState] = useState<SupportedLocale>('pt-BR')
+
+  useEffect(() => {
+    FileSystem.getInfoAsync(LOCALE_FILE)
+      .then(info => {
+        if (!info.exists) return
+        return FileSystem.readAsStringAsync(LOCALE_FILE).then(raw => {
+          const saved = JSON.parse(raw)
+          if (saved === 'pt-BR' || saved === 'en-US') setLocaleState(saved)
+        })
+      })
+      .catch(() => {})
+  }, [])
 
   const setLocale = useCallback((l: SupportedLocale) => {
-    localStorage.setItem(STORAGE_KEY, l)
     setLocaleState(l)
+    FileSystem.writeAsStringAsync(LOCALE_FILE, JSON.stringify(l)).catch(() => {})
   }, [])
 
   const t = useCallback((key: string) => resolveKey(translations[locale], key), [locale])

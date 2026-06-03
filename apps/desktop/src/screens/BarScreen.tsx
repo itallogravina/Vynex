@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { RoutingZone, ItemStatus, Priority } from '@vynex/shared'
 import { useQueue } from '../hooks/useQueue'
 import { useServerUrl } from '../context/ServerUrlContext'
+import { useTranslation } from '../context/I18nContext'
 import '../styles/QueueScreen.css'
 
 function useTick(ms = 1000) {
@@ -34,6 +35,7 @@ export default function BarScreen() {
   const { serverUrl } = useServerUrl()
   const { items, isConnected, error, wsLogs } = useQueue(RoutingZone.BAR)
   const [completedOpen, setCompletedOpen] = useState(false)
+  const { t } = useTranslation()
 
   const activeItems = items.filter(
     i => i.status === ItemStatus.PENDING || i.status === ItemStatus.PREPARING
@@ -60,19 +62,19 @@ export default function BarScreen() {
   return (
     <div className="queue-screen bar-screen">
       <header className="screen-header">
-        <h1>Bar Queue</h1>
+        <h1>{t('queue.bar')}</h1>
         <div className="connection-status">
           {isConnected ? (
-            <span className="status-connected">● Connected</span>
+            <span className="status-connected">● {t('queue.connected')}</span>
           ) : (
-            <span className="status-disconnected">● Offline</span>
+            <span className="status-disconnected">● {t('queue.offline')}</span>
           )}
         </div>
       </header>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && <div className="error-banner">{t('queue.wsError')}</div>}
       {!isConnected && items.length > 0 && (
-        <div className="error-banner" style={{ background: '#92400e' }}>Offline — exibindo último estado conhecido</div>
+        <div className="error-banner" style={{ background: '#92400e' }}>{t('queue.staleState')}</div>
       )}
       <div style={{ position: 'fixed', bottom: 8, right: 8, background: '#111', color: '#0f0', fontFamily: 'monospace', fontSize: 11, padding: '6px 10px', borderRadius: 6, opacity: 0.85, zIndex: 9999, pointerEvents: 'none' }}>
         {wsLogs.map((l, i) => <div key={i}>{l}</div>)}
@@ -80,7 +82,7 @@ export default function BarScreen() {
 
       <div className="queue-container">
         {activeItems.length === 0 && isConnected ? (
-          <div className="empty-queue">No items in queue</div>
+          <div className="empty-queue">{t('queue.noItems')}</div>
         ) : (
           <div className="items-grid">
             {activeItems.map(item => {
@@ -101,14 +103,14 @@ export default function BarScreen() {
                       )}
                       <span className={`elapsed-timer${isLate ? ' elapsed-late' : ''}`}>
                         {fmtElapsed(elapsedSec)}
-                        {isLate && <span className="elapsed-late-badge">LATE</span>}
+                        {isLate && <span className="elapsed-late-badge">{t('queue.late')}</span>}
                       </span>
                       <span className="quantity">×{item.quantity}</span>
                     </div>
                   </div>
                   <div className="item-meta">
                     <p className="table-name">{item.order.table_name}</p>
-                    <p className="status-badge">{item.status.toUpperCase()}</p>
+                    <p className="status-badge">{t(`status.${item.status}`)}</p>
                     <p className="item-timestamp">{fmtDateTime(item.created_at)}</p>
                   </div>
                   {item.notes && <p className="item-notes">{item.notes}</p>}
@@ -118,7 +120,7 @@ export default function BarScreen() {
                         className="btn btn-primary"
                         onClick={() => updateStatus(item.id, item.order_id, ItemStatus.PREPARING)}
                       >
-                        Start Prep
+                        {t('queue.startPrep')}
                       </button>
                     )}
                     {item.status === ItemStatus.PREPARING && (
@@ -126,7 +128,7 @@ export default function BarScreen() {
                         className="btn btn-success"
                         onClick={() => updateStatus(item.id, item.order_id, ItemStatus.READY)}
                       >
-                        Mark Ready
+                        {t('queue.markReady')}
                       </button>
                     )}
                   </div>
@@ -142,7 +144,7 @@ export default function BarScreen() {
               className="completed-toggle"
               onClick={() => setCompletedOpen(o => !o)}
             >
-              {completedOpen ? '▲' : '▼'} Completed this shift ({completedItems.length})
+              {completedOpen ? '▲' : '▼'} {t('queue.completedShift')} ({completedItems.length})
             </button>
             {completedOpen && (
               <div className="completed-grid">
@@ -154,7 +156,7 @@ export default function BarScreen() {
                     </div>
                     <div className="item-meta">
                       <p className="table-name">{item.order.table_name}</p>
-                      <p className="status-badge">{item.status.toUpperCase()}</p>
+                      <p className="status-badge">{t(`status.${item.status}`)}</p>
                       <p className="item-timestamp">{fmtDateTime(item.created_at)}</p>
                     </div>
                     {item.notes && <p className="item-notes">{item.notes}</p>}

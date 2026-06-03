@@ -5,14 +5,17 @@ import OrderScreen from './screens/OrderScreen'
 import ServerSetupScreen from './screens/ServerSetupScreen'
 import LoginScreen from './screens/LoginScreen'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { I18nProvider } from './context/I18nContext'
 import { useServerUrl } from './hooks/useServerUrl'
 
 export default function App(): React.JSX.Element {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </I18nProvider>
     </ErrorBoundary>
   )
 }

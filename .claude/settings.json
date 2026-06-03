@@ -17,7 +17,16 @@
       "Bash(xargs python3 -c \"import sys,json; p=json.load\\(open\\(sys.argv[1]\\)\\); e=p.get\\('exports',{}\\); [print\\(k,'=>',v if isinstance\\(v,str\\) else list\\(v.keys\\(\\)\\)\\) for k,v in \\(e.items\\(\\) if isinstance\\(e,dict\\) else []\\)]\")",
       "Bash(xargs cat)",
       "Bash(node -e \"const p = require\\('./node_modules/@fastify/websocket/package.json'\\); console.log\\(p.version\\)\")",
-      "Bash(node -e \"const p = require\\('./node_modules/fastify/package.json'\\); console.log\\(p.version\\)\")"
+      "Bash(node -e \"const p = require\\('./node_modules/fastify/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(ls ~/Documentos/MeuSegundoCerebro/MeuSegundoCerebro/Projetos/Vynex/)",
+      "Read(//home/ita/Documentos/MeuSegundoCerebro/MeuSegundoCerebro/Projetos/Vynex/**)",
+      "Bash(pnpm --filter @vynex/mobile typecheck)"
+    ],
+    "additionalDirectories": [
+      "/home/ita/Documentos/MeuSegundoCerebro/MeuSegundoCerebro/Projetos/Vynex/Problemas Resolvidos",
+      "/home/ita/Documentos/MeuSegundoCerebro/MeuSegundoCerebro/Projetos/Vynex/Decisoes",
+      "/home/ita/Documentos/MeuSegundoCerebro/MeuSegundoCerebro/Projetos/Vynex/Aprendizados",
+      "/home/ita/Documentos/MeuSegundoCerebro/MeuSegundoCerebro/Projetos/Vynex"
     ]
   }
 }

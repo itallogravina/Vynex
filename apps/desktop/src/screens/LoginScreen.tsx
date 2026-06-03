@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { User } from '@vynex/shared'
 import { useAuth } from '../context/AuthContext'
 import { useServerUrl } from '../context/ServerUrlContext'
+import { useTranslation } from '../context/I18nContext'
 import '../styles/Login.css'
 
 type Method = 'pin' | 'password' | 'list'
@@ -9,6 +10,7 @@ type Method = 'pin' | 'password' | 'list'
 export default function LoginScreen() {
   const { login } = useAuth()
   const { serverUrl } = useServerUrl()
+  const { t } = useTranslation()
   const [method, setMethod] = useState<Method>('pin')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -44,12 +46,12 @@ export default function LoginScreen() {
       try {
         await login(serverUrl, req)
       } catch (e: any) {
-        setError(e.message ?? 'Login failed')
+        setError(e.message ?? t('auth.loginFailed'))
       } finally {
         setLoading(false)
       }
     },
-    [login, serverUrl]
+    [login, serverUrl, t]
   )
 
   // PIN handlers
@@ -58,7 +60,7 @@ export default function LoginScreen() {
   }
   const backspace = () => setPin(p => p.slice(0, -1))
   const submitPin = () => {
-    if (pin.length < 4) { setError('PIN must be at least 4 digits'); return }
+    if (pin.length < 4) { setError(t('auth.pinMinLength')); return }
     doLogin({ login_method: 'pin', pin })
   }
 
@@ -83,7 +85,7 @@ export default function LoginScreen() {
               className={`login-tab ${method === m ? 'active' : ''}`}
               onClick={() => { setMethod(m); setError(null); setPin('') }}
             >
-              {m === 'pin' ? 'PIN' : m === 'password' ? 'Password' : 'Select User'}
+              {m === 'pin' ? t('auth.pin') : m === 'password' ? t('auth.password') : t('auth.selectUser')}
             </button>
           ))}
         </div>
@@ -110,7 +112,7 @@ export default function LoginScreen() {
               ))}
             </div>
             <button className="login-btn" disabled={pin.length < 4 || loading} onClick={submitPin}>
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? t('auth.signingIn') : t('auth.login')}
             </button>
           </div>
         )}
@@ -121,7 +123,7 @@ export default function LoginScreen() {
             onSubmit={e => { e.preventDefault(); doLogin({ login_method: 'password', username, password }) }}
           >
             <label className="login-label">
-              Username
+              {t('auth.username')}
               <input
                 className="login-input"
                 type="text"
@@ -132,7 +134,7 @@ export default function LoginScreen() {
               />
             </label>
             <label className="login-label">
-              Password
+              {t('auth.password')}
               <input
                 className="login-input"
                 type="password"
@@ -143,16 +145,16 @@ export default function LoginScreen() {
               />
             </label>
             <button className="login-btn" type="submit" disabled={!username || !password || loading}>
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? t('auth.signingIn') : t('auth.login')}
             </button>
           </form>
         )}
 
         {method === 'list' && (
           <div className="login-list">
-            {listLoading && <p className="login-list-hint">Loading…</p>}
+            {listLoading && <p className="login-list-hint">{t('common.loading')}</p>}
             {!listLoading && listUsers.length === 0 && (
-              <p className="login-list-hint">No users configured for list login.</p>
+              <p className="login-list-hint">{t('auth.noListUsers')}</p>
             )}
             {listUsers.map(u => (
               <button
