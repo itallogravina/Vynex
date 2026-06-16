@@ -36,6 +36,10 @@ Thumbs.db
 # IDEs
 .vscode/
 .idea/
+.claude/
+
+# Internal planning
+.specs/
 
 # Temporary files
 tmp/
